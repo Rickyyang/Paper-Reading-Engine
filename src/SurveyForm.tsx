@@ -8,9 +8,14 @@ export function SurveyForm({
 }) {
   const fields = [
     [
-      "purpose",
-      "Why are you reading this paper?",
-      "For a project, a course, or curiosity…",
+      "reading_purpose",
+      "Reading purpose",
+      "Why you are reading: current research, literature review, learning a method, reproduction…",
+    ],
+    [
+      "primary_reading_goal",
+      "Primary reading goal",
+      "The most important thing you want to understand from this paper…",
     ],
     [
       "background",
@@ -18,14 +23,14 @@ export function SurveyForm({
       "Topics and methods you already know…",
     ],
     [
-      "goals",
-      "What do you want to understand?",
-      "The key idea, an experiment, a proof…",
-    ],
-    [
       "difficulties",
       "Any known difficulties?",
       "Unfamiliar notation, missing prerequisites…",
+    ],
+    [
+      "effort",
+      "How much reading effort can you spend?",
+      "For example, 30 minutes or two focused sessions…",
     ],
   ] as const;
   return (

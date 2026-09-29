@@ -28,19 +28,25 @@ node node_modules/vite/bin/vite.js --host 127.0.0.1 --port 5173 --strictPort
 
 ## Workflow
 
-1. Enter a paper title and create a session.
-2. Complete purpose, background, goals, depth, and optional difficulties.
+1. Enter a paper title and create a session. New sessions begin in `setup`.
+2. Complete reading purpose, background, primary reading goal (default: Basic understanding), depth, optional difficulties, and available reading effort.
 3. Copy the filled predefined prompt. Upload the paper and paste the prompt in ChatGPT yourself.
-4. Paste ChatGPT's JSON response into the application and import it.
-5. Complete quests and subtasks, edit notes, and add, edit, resolve, or remove questions and side quests.
-6. Use the follow-up template for additional reading. It includes current notes, progress, and unresolved questions. Imports append; importing the same response twice creates duplicates.
+4. Paste ChatGPT's entire response into the application and import it. The parser extracts only the JSON between the exact import markers; the human-readable portion is ignored.
+5. A successful import saves the plan and switches to the reading workspace. It displays the main objective, route summary, starting instruction, collapsible Parts and Quests, Part checkpoints, and collapsed skim material. The Part and Quest in `start_here` open initially. Opening another Quest marks it CURRENT and closes the previous Quest's details. Checkboxes save completion with the session and update the completed/total count.
+6. Use **Redo reading setup** inside the upper-right **⋯** control to return to `setup`. The saved plan and completion are retained until a valid new import replaces the plan and resets completion. Older checklist data is preserved separately.
 
-Quest completion marks all its subtasks complete; unchecking a quest clears its subtasks. Completing every subtask completes its quest.
+Invalid imports leave the session in setup without changing saved plan data. Session state and quest completion survive reopening; disclosure state starts again from `start_here`. Plans saved in the older format remain stored but need a current Parts-and-Quests plan to use this workspace. No notes, side quests, checkpoint recording, or additional prompts are provided by the workspace.
 
 ## Response format
 
-```json
+```text
+Here is a readable explanation of your reading plan...
+
+--- PAPER_READER_IMPORT_START ---
 {
+  "schema_version": 1,
+  "record_type": "initial_reading_plan",
+  "main_quest": { "title": "Understand the main result" },
   "quests": [
     {
       "title": "Understand the main result",
@@ -48,16 +54,17 @@ Quest completion marks all its subtasks complete; unchecking a quest clears its 
       "notes": "Start with the introduction."
     }
   ],
-  "notes": "Initial reading orientation",
-  "questions": ["Which assumptions matter?"],
-  "sideQuests": ["Review the prerequisite method"]
+  "starting_point": { "instruction": "Read the abstract" }
 }
+--- PAPER_READER_IMPORT_END ---
 ```
 
-At least one quest and one subtask per quest are required. Notes are strings; questions and sideQuests are arrays of non-empty strings and may be empty. A JSON code fence is accepted. Invalid responses do not modify the session.
+Exactly one pair of markers is required. An optional Markdown json code fence inside the markers is accepted. The minimum schema requires numeric `schema_version: 1`, `record_type: "initial_reading_plan"`, non-null `main_quest` and `starting_point`, and a `quests` array. Nested structures are intentionally not constrained yet. The entire parsed object, including additional fields, is saved in `session.readingPlan`. There is no natural-language interpretation, JSON repair, or fuzzy parsing. Invalid responses do not modify the session or the saved plan.
 
 ## Persistence and scope
 
 Sessions and the active session are saved in localStorage under `paper-reading-companion:v0`, with a versioned envelope. Storage failures are shown visibly. Unreadable saved data is preserved rather than overwritten. Pasted response drafts are temporary until imported. Clearing browser data removes saved sessions. This prototype is intended for one browser tab at a time; there is no cross-tab synchronization or backup/export feature.
 
-Predefined templates live in `src/prompts.ts`; response validation lives in `src/parser.ts`; persistence lives in `src/storage.ts`. Components use ordinary React state. All styles and runtime resources are local. No external API calls are made by the application.
+Edit prompt wording in `src/prompts/initialReadingPlan.ts`. The six placeholders are `reading_purpose`, `background`, `primary_reading_goal`, `known_difficulties`, `reading_depth`, and `reading_effort`, each surrounded by double braces. `src/prompts.ts` substitutes survey values in a single deterministic pass; blank difficulties and effort use "None specified" and "Not specified". Existing surveys gain an empty effort field when loaded.
+
+The import type, marker constants, and minimum validation live in `src/readingPlan.ts`; extraction and JSON parsing live in `src/parser.ts`; persistence lives in `src/storage.ts`. Components use ordinary React state. All styles and runtime resources are local. No external API calls are made by the application.

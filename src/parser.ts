@@ -1,48 +1,40 @@
-export type ImportedPlan = {
-  quests: { title: string; subtasks: string[]; notes: string }[];
-  notes: string;
-  questions: string[];
-  sideQuests: string[];
-};
-const object = (value: unknown): value is Record<string, unknown> =>
-  typeof value === "object" && value !== null && !Array.isArray(value);
-const strings = (value: unknown): value is string[] =>
-  Array.isArray(value) &&
-  value.every((v) => typeof v === "string" && v.trim().length > 0);
-export function parsePlan(input: string): ImportedPlan {
-  const clean = input
-    .trim()
-    .replace(/^```(?:json)?\s*\n?([\s\S]*?)\n?```$/i, "$1");
-  let data: unknown;
+import {
+  IMPORT_START,
+  IMPORT_END,
+  validateInitialReadingPlan,
+  type InitialReadingPlan,
+} from "./readingPlan.ts";
+
+export function parsePlan(input: string): InitialReadingPlan {
+  const trimmed = input.trim();
+  const start = trimmed.indexOf(IMPORT_START);
+  const end = trimmed.indexOf(IMPORT_END);
+  let json = trimmed;
+  if (start >= 0 && end >= 0) {
+    if (end < start)
+      throw new Error(
+        "The import end marker must appear after the start marker.",
+      );
+    if (
+      trimmed.indexOf(IMPORT_START, start + IMPORT_START.length) !== -1 ||
+      trimmed.indexOf(IMPORT_END, end + IMPORT_END.length) !== -1
+    ) {
+      throw new Error(
+        "Expected exactly one import block. Paste a response with one start marker and one end marker.",
+      );
+    }
+    json = trimmed.slice(start + IMPORT_START.length, end).trim();
+  }
+  const fence = /^```(?:json)?\s*\r?\n([\s\S]*?)\r?\n```$/i.exec(json);
+  if (fence) json = fence[1].trim();
+  let plan: unknown;
   try {
-    data = JSON.parse(clean);
+    plan = JSON.parse(json);
   } catch {
     throw new Error(
-      "Invalid JSON. Paste the complete JSON object from ChatGPT, without surrounding commentary.",
+      "Invalid JSON. Paste raw JSON or a Markdown JSON code block. If including explanatory text, surround the JSON with both import markers.",
     );
   }
-  if (!object(data) || !Array.isArray(data.quests) || data.quests.length === 0)
-    throw new Error("The response must contain a non-empty quests array.");
-  data.quests.forEach((q: unknown, index: number) => {
-    if (
-      !object(q) ||
-      typeof q.title !== "string" ||
-      !q.title.trim() ||
-      !strings(q.subtasks) ||
-      !q.subtasks.length ||
-      typeof q.notes !== "string"
-    )
-      throw new Error(
-        `Quest ${index + 1} needs a title, a non-empty array of subtask strings, and a notes string.`,
-      );
-  });
-  if (
-    typeof data.notes !== "string" ||
-    !strings(data.questions) ||
-    !strings(data.sideQuests)
-  )
-    throw new Error(
-      "Include a notes string, a questions array of strings, and a sideQuests array of strings. Arrays may be empty.",
-    );
-  return data as ImportedPlan;
+  validateInitialReadingPlan(plan);
+  return plan;
 }

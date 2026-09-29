@@ -1,10 +1,11 @@
 import { useEffect, useState } from "react";
-import { emptySurvey, task, type Session } from "./types";
+import { emptySurvey, type Session } from "./types";
 import { load, save } from "./storage";
 import { filledPrompt } from "./prompts";
 import { parsePlan } from "./parser";
 import { SurveyForm } from "./SurveyForm";
 import { ReadingWorkspace } from "./ReadingWorkspace";
+import { isLegacyReadingPlan } from "./readingPlan";
 
 function SessionEditor({
   session,
@@ -17,32 +18,23 @@ function SessionEditor({
   const [message, setMessage] = useState("");
   const [error, setError] = useState("");
   const ready = [
-    session.survey.purpose,
+    session.survey.reading_purpose,
     session.survey.background,
-    session.survey.goals,
+    session.survey.primary_reading_goal,
   ].every((s) => s.trim());
   const prompt = filledPrompt(session);
   function importResponse() {
     try {
       const plan = parsePlan(response);
-      const quests = plan.quests.map((q) => ({
-        ...task(q.title),
-        notes: q.notes,
-        subtasks: q.subtasks.map(task),
-      }));
       onChange({
         ...session,
-        stage: "followup",
-        quests: [...session.quests, ...quests],
-        notes: [session.notes, plan.notes].filter(Boolean).join("\n\n"),
-        questions: [...session.questions, ...plan.questions.map(task)],
-        sideQuests: [...session.sideQuests, ...plan.sideQuests.map(task)],
+        state: "reading",
+        readingPlan: plan,
+        completedQuestIds: [],
       });
       setResponse("");
       setError("");
-      setMessage(
-        `Imported ${quests.length} quests. Existing progress and notes were preserved.`,
-      );
+      setMessage("");
     } catch (e) {
       setError(e instanceof Error ? e.message : "Import failed.");
       setMessage("");
@@ -51,7 +43,36 @@ function SessionEditor({
   return (
     <>
       <header>
-        <div className="eyebrow">Reading session</div>
+        <div className="session-heading">
+          <div className="eyebrow">Reading session</div>
+          {session.state === "reading" && (
+            <details
+              className="plan-options"
+              onBlur={(event) => {
+                if (!event.currentTarget.contains(event.relatedTarget))
+                  event.currentTarget.open = false;
+              }}
+              onKeyDown={(event) => {
+                if (event.key === "Escape") {
+                  event.currentTarget.open = false;
+                  event.currentTarget.querySelector("summary")?.focus();
+                }
+              }}
+            >
+              <summary aria-label="Plan options" title="Plan options">
+                ⋯
+              </summary>
+              <div className="plan-options-panel">
+                <button
+                  type="button"
+                  onClick={() => onChange({ ...session, state: "setup" })}
+                >
+                  Redo reading setup
+                </button>
+              </div>
+            </details>
+          )}
+        </div>
         <label className="title-label">
           Paper title
           <input
@@ -61,95 +82,100 @@ function SessionEditor({
           />
         </label>
       </header>
-      <div className="columns">
-        <SurveyForm
-          survey={session.survey}
-          onChange={(survey) => onChange({ ...session, survey })}
-        />
-        <section className="panel">
-          <div className="eyebrow">02 / Bring to ChatGPT</div>
-          <h2>Your prompt & reading plan</h2>
-          <p className="muted">
-            Copy the prompt, upload your paper in ChatGPT, then paste its JSON
-            response below. Everything moves manually.
-          </p>
-          <label>
-            Prompt template
-            <select
-              value={session.stage}
-              onChange={(e) =>
-                onChange({
-                  ...session,
-                  stage: e.target.value as Session["stage"],
-                })
-              }
+      {session.state === "setup" ? (
+        <div className="columns">
+          <SurveyForm
+            survey={session.survey}
+            onChange={(survey) => onChange({ ...session, survey })}
+          />
+          <section className="panel">
+            <div className="eyebrow">02 / Bring to ChatGPT</div>
+            <h2>Your prompt & reading plan</h2>
+            <p className="muted">
+              Copy the prompt, upload your paper in ChatGPT, then paste its
+              entire response below. Only the marked JSON import block is saved.
+            </p>
+            {!ready && (
+              <p className="hint">
+                Fill in your reading purpose, background, and primary reading
+                goal to prepare a prompt.
+              </p>
+            )}
+            <label>
+              Filled predefined prompt
+              <textarea
+                className="prompt"
+                rows={12}
+                readOnly
+                value={ready ? prompt : ""}
+                placeholder="Your completed prompt will appear here."
+              />
+            </label>
+            <button
+              disabled={!ready}
+              onClick={async () => {
+                try {
+                  await navigator.clipboard.writeText(prompt);
+                  setMessage(
+                    "Prompt copied. Paste it into ChatGPT with your paper.",
+                  );
+                  setError("");
+                } catch {
+                  setError(
+                    "Clipboard unavailable. Select the prompt text and copy it manually.",
+                  );
+                }
+              }}
             >
-              <option value="initial">Initial reading plan</option>
-              <option value="followup">Follow-up reading plan</option>
-            </select>
-          </label>
-          {!ready && (
-            <p className="hint">
-              Fill in your purpose, background, and goals to prepare a prompt.
+              Copy prompt
+            </button>
+            <label className="import-label">
+              Paste ChatGPT’s entire response
+              <textarea
+                rows={7}
+                value={response}
+                onChange={(e) => setResponse(e.target.value)}
+                placeholder="Paste the explanation and the PAPER_READER_IMPORT_START / PAPER_READER_IMPORT_END block here."
+              />
+            </label>
+            <p className="muted small">
+              A valid import saves the initial reading plan and completes setup.
+              Reimporting replaces this plan. An invalid response leaves your
+              session unchanged.
             </p>
-          )}
-          <label>
-            Filled predefined prompt
-            <textarea
-              className="prompt"
-              rows={12}
-              readOnly
-              value={ready ? prompt : ""}
-              placeholder="Your completed prompt will appear here."
-            />
-          </label>
-          <button
-            disabled={!ready}
-            onClick={async () => {
-              try {
-                await navigator.clipboard.writeText(prompt);
-                setMessage(
-                  "Prompt copied. Paste it into ChatGPT with your paper.",
-                );
-                setError("");
-              } catch {
-                setError(
-                  "Clipboard unavailable. Select the prompt text and copy it manually.",
-                );
-              }
-            }}
-          >
-            Copy prompt
-          </button>
-          <label className="import-label">
-            Paste ChatGPT’s structured response
-            <textarea
-              rows={7}
-              value={response}
-              onChange={(e) => setResponse(e.target.value)}
-              placeholder='{"quests": […], "notes": "…", "questions": [], "sideQuests": []}'
-            />
-          </label>
-          <p className="muted small">
-            Imports append to this session. Check the response before importing
-            it once.
+            <button disabled={!response.trim()} onClick={importResponse}>
+              Import reading plan
+            </button>
+            {error && (
+              <p role="alert" className="error">
+                {error}
+              </p>
+            )}
+            {message && (
+              <p role="status" className="success">
+                {message}
+              </p>
+            )}
+          </section>
+        </div>
+      ) : session.readingPlan && !isLegacyReadingPlan(session.readingPlan) ? (
+        <ReadingWorkspace
+          plan={session.readingPlan}
+          completedQuestIds={session.completedQuestIds ?? []}
+          onCompletionChange={(completedQuestIds) =>
+            onChange({ ...session, completedQuestIds })
+          }
+        />
+      ) : (
+        <section className="panel">
+          <h2>Reading workspace</h2>
+          <p className="muted">
+            This session has no plan in the current Parts-and-Quests format. Use
+            the ⋯ options above to redo reading setup and import a current plan.
+            Any previously saved data is retained until you replace the plan.
           </p>
-          <button disabled={!response.trim()} onClick={importResponse}>
-            Import reading plan
-          </button>
-          {error && (
-            <p role="alert" className="error">
-              {error}
-            </p>
-          )}
-          {message && (
-            <p role="status" className="success">
-              {message}
-            </p>
-          )}
         </section>
-      </div>
-      <ReadingWorkspace session={session} onChange={onChange} />
+      )}
     </>
   );
 }
@@ -198,6 +224,7 @@ export default function App() {
               id: crypto.randomUUID(),
               title: title.trim(),
               survey: emptySurvey(),
+              state: "setup",
               stage: "initial",
               quests: [],
               notes: "",
@@ -231,10 +258,7 @@ export default function App() {
               onClick={() => setState({ ...state, activeId: s.id })}
             >
               {s.title || "Untitled paper"}
-              <small>
-                {s.quests.filter((q) => q.done).length} / {s.quests.length}{" "}
-                quests
-              </small>
+              <small>{s.state === "setup" ? "Setup" : "Reading"}</small>
             </button>
           ))}
         </nav>
@@ -248,9 +272,11 @@ export default function App() {
       <main>
         <div className="topline">
           <span>YOUR PERSONAL READING WORKSPACE</span>
-          <span>
-            {storageError ? "Storage needs attention" : "Saved locally"}
-          </span>
+          <div className="topline-actions">
+            <span>
+              {storageError ? "Storage needs attention" : "Saved locally"}
+            </span>
+          </div>
         </div>
         {storageError && (
           <p role="alert" className="error">
@@ -259,7 +285,7 @@ export default function App() {
         )}
         {active ? (
           <SessionEditor
-            key={active.id}
+            key={`${active.id}:${active.state}`}
             session={active}
             onChange={(session) =>
               setState((current) => ({
@@ -279,13 +305,15 @@ export default function App() {
             </h1>
             <p>
               Create a session, describe what you want to learn, and bring a
-              tailored prompt to ChatGPT. Your reading plan, notes, and open
-              questions stay together here.
+              tailored prompt to ChatGPT. Import its reading plan to save it
+              locally.
             </p>
             <ol>
               <li>Prepare a short reading survey</li>
               <li>Copy a prompt and import a plan</li>
-              <li>Read, check off quests, and reflect</li>
+              <li>
+                Keep your imported plan saved for the future reading workspace
+              </li>
             </ol>
             <p className="muted">Start with a paper title in the sidebar.</p>
           </section>
