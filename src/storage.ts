@@ -1,4 +1,5 @@
 import type { Session } from "./types";
+import { isNoteWorkspace } from "./noteSections.ts";
 import {
   isLegacyReadingPlan,
   validateInitialReadingPlan,
@@ -15,6 +16,21 @@ function isSession(s: any): boolean {
     s &&
     typeof s.id === "string" &&
     typeof s.title === "string" &&
+    (s.workspaceState === undefined || isNoteWorkspace(s.workspaceState)) &&
+    (s.savedNotes === undefined ||
+      (Array.isArray(s.savedNotes) &&
+        s.savedNotes.every(
+          (note: any) =>
+            note &&
+            typeof note.id === "string" &&
+            typeof note.text === "string" &&
+            ["partId", "questId", "partTitle", "questTitle"].every(
+              (key) => note[key] === undefined || typeof note[key] === "string",
+            ) &&
+            (note.createdAt === undefined ||
+              (typeof note.createdAt === "string" &&
+                Number.isFinite(Date.parse(note.createdAt)))),
+        ))) &&
     (s.completedQuestIds === undefined ||
       (Array.isArray(s.completedQuestIds) &&
         s.completedQuestIds.every((id: unknown) => typeof id === "string"))) &&

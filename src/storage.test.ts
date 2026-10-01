@@ -68,4 +68,59 @@ test("persists the complete plan and reading state; migrates older surveys witho
   const beforeInvalidImport = stored;
   assert.throws(() => parsePlan('{"schema_version": 1}'));
   assert.equal(stored, beforeInvalidImport);
+  // Saved notes are paper-level data, independent of legacy notes and plan replacement.
+  const withNotes: Session = {
+    ...current,
+    savedNotes: [
+      {
+        id: "note-1",
+        text: "# Understanding\n\n**Bold** and $x_k$\n\n$$\ne_k \\in \\mathcal{E}(V,\\beta_k^2)\n$$\n\n```tex\nA^\\top P A\n```\n",
+      },
+    ],
+  };
+  save({ sessions: [withNotes], activeId: withNotes.id });
+  assert.deepEqual(load().sessions[0], withNotes);
+  save({
+    sessions: [{ ...withNotes, state: "setup" }],
+    activeId: withNotes.id,
+  });
+  assert.deepEqual(load().sessions[0].savedNotes, withNotes.savedNotes);
+  const annotated = {
+    id: "note-2",
+    text: "Quest note",
+    createdAt: "2026-09-30T10:00:00.000Z",
+    partId: "P1",
+    questId: "Q1.1",
+    partTitle: "Part title",
+    questTitle: "Quest title",
+  };
+  const edited = { ...annotated, text: "Edited quest note" };
+  save({
+    sessions: [
+      { ...withNotes, savedNotes: [...withNotes.savedNotes!, edited] },
+    ],
+    activeId: withNotes.id,
+  });
+  assert.deepEqual(load().sessions[0].savedNotes, [
+    ...withNotes.savedNotes!,
+    edited,
+  ]);
+  const validNotes = stored;
+  for (const invalid of [
+    { createdAt: "not-a-date" },
+    { partId: 42 },
+    { questTitle: false },
+  ]) {
+    const badMetadata = JSON.parse(validNotes!);
+    Object.assign(badMetadata.sessions[0].savedNotes[1], invalid);
+    stored = JSON.stringify(badMetadata);
+    assert.throws(() => load(), /has not been overwritten/);
+  }
+  stored = validNotes;
+  const malformed = JSON.parse(stored!);
+  malformed.sessions[0].savedNotes[0].text = 42;
+  stored = JSON.stringify(malformed);
+  const unreadable = stored;
+  assert.throws(() => load(), /has not been overwritten/);
+  assert.equal(stored, unreadable);
 });

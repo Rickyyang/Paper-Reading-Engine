@@ -26,7 +26,7 @@ A personal, local browser application for organizing paper reading around manual
 - `src/prompts/initialReadingPlan.ts`: editable prompt wording and its embedded expected JSON example; exports `initialReadingPlanPrompt` and a filling helper.
 - `src/prompts.ts`: actual UI prompt-filling path. Keep its import aligned with the template export.
 - `src/parser.ts`: marker/fence handling and JSON parsing; `src/readingPlan.ts`: current schema validation plus legacy saved-plan recognition.
-- `src/ReadingWorkspace.tsx`: imported Parts/Quests display and completion controls.
+- `src/ReadingWorkspace.tsx`: Part/Quest selection, reading guidance and temporary Parking lot; `src/WorkingNotes.tsx` owns the persisted continuous-section note UI.
 - `src/storage.ts`: local persistence, validation, legacy survey migration.
 - `src/styles.css`: shared visual style; `src/*.test.ts`: Node built-in tests.
 - `Start Paper Reading Companion.cmd`: Windows launcher, with a machine-specific Codex Node fallback after normal PATH lookup.
@@ -37,21 +37,21 @@ A personal, local browser application for organizing paper reading around manual
 - Keep survey, prompt, import schema, and tests consistent when changing the contract. Preserve saved sessions through explicit compatibility handling rather than deleting incompatible data.
 - `reading_purpose` is context; `primary_reading_goal` (default `Basic understanding`) organizes the plan. Do not conflate them.
 - Accept marker-wrapped responses, raw JSON, and generic/JSON Markdown fences. Without markers, reject surrounding prose; never fuzzy-extract or repair JSON.
-- Persist imported plan data separately from quest completion. Reimport replaces the plan and resets completion; merely returning to setup retains both.
-- Render imported text as text, not raw HTML. Retain accessible labels, keyboard controls, and disclosure states.
+- Imported plans are guidance only: no completion controls or counters. Retain saved completion fields for compatibility; the existing import flow resets them on replacement. Parking lot remains temporary. Working-section Markdown and draft persist in session.workspaceState, separate from savedSections. Render & continue appends raw Markdown with a blank line; Save section includes pending draft and clears the working section. Section edits retain ID/createdAt/context and set updatedAt; deletion requires confirmation. Legacy savedNotes are preserved and used as initial saved sections only when workspaceState is absent.
+- Render imported plan text as text. Notes use the shared MarkdownNote renderer (react-markdown, remark-math, rehype-katex); raw HTML is disabled and KaTeX trust is false. Never rewrite Markdown/LaTeX source or store rendered HTML. Retain accessible labels, keyboard controls, and disclosure states.
 - Preserve the existing restrained green/neutral style. Redo setup belongs in the upper-right options control, not the normal reading flow.
 
 ## Commands and portability
 
 Use Node.js 22.6+ (Node 24 was used in development). `pnpm-lock.yaml` is the existing lockfile; prefer pnpm on a fresh checkout (`pnpm install --frozen-lockfile`). Do not introduce a competing lockfile without a reason. README also documents npm installation; scripts work with either runner once dependencies are installed.
 
-| Purpose | Command |
-| --- | --- |
-| Development | `pnpm run dev` (or `npm run dev`) |
-| Type check | `node node_modules/typescript/bin/tsc -b` |
-| Production build | `pnpm run build` (or `npm run build`) |
-| Tests | `pnpm test` (or `npm test`) |
-| Production preview | `pnpm run preview` |
+| Purpose              | Command                                                       |
+| -------------------- | ------------------------------------------------------------- |
+| Development          | `pnpm run dev` (or `npm run dev`)                             |
+| Type check           | `node node_modules/typescript/bin/tsc -b`                     |
+| Production build     | `pnpm run build` (or `npm run build`)                         |
+| Tests                | `pnpm test` (or `npm test`)                                   |
+| Production preview   | `pnpm run preview`                                            |
 | Format touched files | `node node_modules/prettier/bin/prettier.cjs --write <files>` |
 
 No lint script/configuration is installed. Tests use Node's built-in runner with TypeScript stripping; test files are excluded from the app's TypeScript build.

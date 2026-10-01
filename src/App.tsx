@@ -5,6 +5,7 @@ import { filledPrompt } from "./prompts";
 import { parsePlan } from "./parser";
 import { SurveyForm } from "./SurveyForm";
 import { ReadingWorkspace } from "./ReadingWorkspace";
+import { noteWorkspace } from "./noteSections";
 import { isLegacyReadingPlan } from "./readingPlan";
 
 function SessionEditor({
@@ -17,6 +18,7 @@ function SessionEditor({
   const [response, setResponse] = useState("");
   const [message, setMessage] = useState("");
   const [error, setError] = useState("");
+
   const ready = [
     session.survey.reading_purpose,
     session.survey.background,
@@ -161,9 +163,12 @@ function SessionEditor({
       ) : session.readingPlan && !isLegacyReadingPlan(session.readingPlan) ? (
         <ReadingWorkspace
           plan={session.readingPlan}
-          completedQuestIds={session.completedQuestIds ?? []}
-          onCompletionChange={(completedQuestIds) =>
-            onChange({ ...session, completedQuestIds })
+          workspaceState={noteWorkspace(session)}
+          onWorkspaceChange={(workspaceState) =>
+            onChange({
+              ...session,
+              workspaceState,
+            })
           }
         />
       ) : (
@@ -194,6 +199,7 @@ export default function App() {
   const [state, setState] = useState(initial.state);
   const [storageError, setStorageError] = useState(initial.error);
   const [title, setTitle] = useState("");
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   useEffect(() => {
     if (initial.error) return;
     try {
@@ -208,66 +214,81 @@ export default function App() {
   const active =
     state.sessions.find((s) => s.id === state.activeId) ?? state.sessions[0];
   return (
-    <div className="app">
-      <aside>
-        <div className="brand">
-          Paper Reading
-          <br />
-          <span>Companion</span>
-        </div>
-        <p className="muted">One paper. A clearer path.</p>
-        <form
-          onSubmit={(e) => {
-            e.preventDefault();
-            if (!title.trim()) return;
-            const session: Session = {
-              id: crypto.randomUUID(),
-              title: title.trim(),
-              survey: emptySurvey(),
-              state: "setup",
-              stage: "initial",
-              quests: [],
-              notes: "",
-              questions: [],
-              sideQuests: [],
-            };
-            setState({
-              sessions: [...state.sessions, session],
-              activeId: session.id,
-            });
-            setTitle("");
-          }}
-        >
-          <label>
-            Start a reading session
-            <input
-              placeholder="Paper title"
-              value={title}
-              onChange={(e) => setTitle(e.target.value)}
-            />
-          </label>
-          <button disabled={!title.trim() || !!initial.error}>
-            + New session
+    <div className={`app ${sidebarCollapsed ? "sidebar-collapsed" : ""}`}>
+      <aside aria-label="App controls">
+        <div className="sidebar-toggle-row">
+          <div className="brand" hidden={sidebarCollapsed}>
+            Paper Reading
+            <br />
+            <span>Companion</span>
+          </div>
+          <button
+            type="button"
+            className="quiet fold-toggle"
+            aria-label={`${sidebarCollapsed ? "Expand" : "Collapse"} app controls`}
+            title={`${sidebarCollapsed ? "Expand" : "Collapse"} app controls`}
+            aria-expanded={!sidebarCollapsed}
+            aria-controls="app-controls-content"
+            onClick={() => setSidebarCollapsed(!sidebarCollapsed)}
+          >
+            <span className="fold-icon" aria-hidden="true" />
           </button>
-        </form>
-        <nav aria-label="Reading sessions">
-          {state.sessions.map((s) => (
-            <button
-              key={s.id}
-              className={`session-button ${active?.id === s.id ? "selected" : ""}`}
-              onClick={() => setState({ ...state, activeId: s.id })}
-            >
-              {s.title || "Untitled paper"}
-              <small>{s.state === "setup" ? "Setup" : "Reading"}</small>
+        </div>
+        <div id="app-controls-content" hidden={sidebarCollapsed}>
+          <p className="muted">One paper. A clearer path.</p>
+          <form
+            onSubmit={(e) => {
+              e.preventDefault();
+              if (!title.trim()) return;
+              const session: Session = {
+                id: crypto.randomUUID(),
+                title: title.trim(),
+                survey: emptySurvey(),
+                state: "setup",
+                stage: "initial",
+                quests: [],
+                notes: "",
+                questions: [],
+                sideQuests: [],
+              };
+              setState({
+                sessions: [...state.sessions, session],
+                activeId: session.id,
+              });
+              setTitle("");
+            }}
+          >
+            <label>
+              Start a reading session
+              <input
+                placeholder="Paper title"
+                value={title}
+                onChange={(e) => setTitle(e.target.value)}
+              />
+            </label>
+            <button disabled={!title.trim() || !!initial.error}>
+              + New session
             </button>
-          ))}
-        </nav>
-        <p className="local-note">
-          Local browser storage · No API
-          <br />
-          Use the same browser and local address to return to your sessions.
-          Clearing browser data removes them.
-        </p>
+          </form>
+          <nav aria-label="Reading sessions">
+            {state.sessions.map((s) => (
+              <button
+                key={s.id}
+                className={`session-button ${active?.id === s.id ? "selected" : ""}`}
+                onClick={() => setState({ ...state, activeId: s.id })}
+              >
+                {s.title || "Untitled paper"}
+                <small>{s.state === "setup" ? "Setup" : "Reading"}</small>
+              </button>
+            ))}
+          </nav>
+          <p className="local-note">
+            Local browser storage · No API
+            <br />
+            Use the same browser and local address to return to your sessions.
+            Clearing browser data removes them.
+          </p>
+        </div>
       </aside>
       <main>
         <div className="topline">

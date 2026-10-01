@@ -9,7 +9,18 @@ export type Survey = {
 };
 export type Task = { id: string; title: string; done: boolean };
 export type Quest = Task & { notes: string; subtasks: Task[] };
+export type SavedNote = {
+  id: string;
+  text: string;
+  // Optional for notes saved before metadata was introduced.
+  createdAt?: string;
+  partId?: string;
+  questId?: string;
+  partTitle?: string;
+  questTitle?: string;
+};
 export type Session = {
+  workspaceState?: NoteWorkspaceState;
   id: string;
   title: string;
   survey: Survey;
@@ -21,6 +32,21 @@ export type Session = {
   sideQuests: Task[];
   readingPlan?: InitialReadingPlan | LegacyReadingPlan;
   completedQuestIds?: string[];
+  savedNotes?: SavedNote[];
+};
+export type SavedSection = {
+  id: string;
+  markdown: string;
+  createdAt: string | null;
+  updatedAt: string | null;
+  partId: string | null;
+  partTitle: string | null;
+  questId: string | null;
+  questTitle: string | null;
+};
+export type NoteWorkspaceState = {
+  workingSection: { markdown: string; draft: string };
+  savedSections: SavedSection[];
 };
 export const emptySurvey = (): Survey => ({
   reading_purpose: "",
