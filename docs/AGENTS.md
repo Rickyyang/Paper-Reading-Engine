@@ -26,20 +26,23 @@ A personal, local browser application for organizing paper reading around manual
 - `src/prompts/initialReadingPlan.ts`: editable prompt wording and its embedded expected JSON example; exports `initialReadingPlanPrompt` and a filling helper.
 - `src/prompts.ts`: actual UI prompt-filling path. Keep its import aligned with the template export.
 - `src/parser.ts`: marker/fence handling and JSON parsing; `src/readingPlan.ts`: current schema validation plus legacy saved-plan recognition.
-- `src/ReadingWorkspace.tsx`: Part/Quest selection, reading guidance and temporary Parking lot; `src/WorkingNotes.tsx` owns the persisted continuous-section note UI.
-- `src/storage.ts`: local persistence, validation, legacy survey migration.
+- `src/ReadingWorkspace.tsx`: Part/Quest selection, reading guidance and persisted Parking lot; `src/WorkingNotes.tsx` owns the persisted continuous-section note UI.
+- `src/storage.ts`: local persistence, reusable session validation, legacy survey migration.
+- `src/backup.ts`, `src/RestoreDialog.tsx`: backup version/validation, merge/replace planning, atomic restore and confirmation UI.
+- `src/exports.ts`: JSON/Markdown generation, filenames and Blob downloads; never reconstruct exports from rendered UI.
 - `src/styles.css`: shared visual style; `src/*.test.ts`: Node built-in tests.
 - `Start Paper Reading Companion.cmd`: Windows launcher, with a machine-specific Codex Node fallback after normal PATH lookup.
 
 ## Behavioral contracts
 
-- Session `state` is `setup` or `reading`. Only a valid import changes setup to reading. Errors must not mutate the saved plan or session state.
+- Session `state` is `setup` or `reading`. Only a valid plan import or validated backup restore introduces reading state. Errors must not mutate the saved plan or session state.
 - Keep survey, prompt, import schema, and tests consistent when changing the contract. Preserve saved sessions through explicit compatibility handling rather than deleting incompatible data.
 - `reading_purpose` is context; `primary_reading_goal` (default `Basic understanding`) organizes the plan. Do not conflate them.
 - Accept marker-wrapped responses, raw JSON, and generic/JSON Markdown fences. Without markers, reject surrounding prose; never fuzzy-extract or repair JSON.
-- Imported plans are guidance only: no completion controls or counters. Retain saved completion fields for compatibility; the existing import flow resets them on replacement. Parking lot remains temporary. Working-section Markdown and draft persist in session.workspaceState, separate from savedSections. Render & continue appends raw Markdown with a blank line; Save section includes pending draft and clears the working section. Section edits retain ID/createdAt/context and set updatedAt; deletion requires confirmation. Legacy savedNotes are preserved and used as initial saved sections only when workspaceState is absent.
+- Imported plans are guidance only: no completion controls or counters. Retain saved completion fields for compatibility; the existing import flow resets them on replacement. Parking lot items persist on the session for backup/restore. Session updatedAt advances only on content changes. Working-section Markdown and draft persist in session.workspaceState, separate from savedSections. Render & continue appends raw Markdown with a blank line; Save section includes pending draft and clears the working section. Section edits retain ID/createdAt/context and set updatedAt; deletion requires confirmation. Legacy savedNotes are preserved and used as initial saved sections only when workspaceState is absent.
 - Render imported plan text as text. Notes use the shared MarkdownNote renderer (react-markdown, remark-math, rehype-katex); raw HTML is disabled and KaTeX trust is false. Never rewrite Markdown/LaTeX source or store rendered HTML. Retain accessible labels, keyboard controls, and disclosure states.
-- Preserve the existing restrained green/neutral style. Redo setup belongs in the upper-right options control, not the normal reading flow.
+- Backup version is centralized in `backup.ts`. Validate the entire backup before confirmation; restore storage atomically before publishing React state. Preserve IDs/raw text/timestamps; never silently duplicate IDs. Merge conflicts with equal/missing timestamps must be disclosed. Replace requires explicit acknowledgement.
+- Preserve the existing restrained green/neutral style. Export, import/restore, and redo setup belong in the unified upper-right Data menu, not the normal reading flow.
 
 ## Commands and portability
 
@@ -62,11 +65,11 @@ If a shell has Node but no working package runner, after installing dependencies
 node node_modules/vite/bin/vite.js --host 127.0.0.1 --port 5173 --strictPort
 node node_modules/typescript/bin/tsc -b
 node node_modules/vite/bin/vite.js build
-node --experimental-strip-types --test src/parser.test.ts src/prompts.test.ts src/storage.test.ts
+node --experimental-strip-types --test src/*.test.ts
 ```
 
 Dev origin is `http://127.0.0.1:5173/`; strict port prevents silently switching storage origins. The Windows launcher opens the browser and keeps a visible terminal running. Stop only servers you started, and say whether you left one running. Do not kill an unidentified process occupying the port.
 
-Reading data belongs to the browser profile and origin, not the repository. Another computer/browser or clearing site data will not retain it; there is currently no export/sync. Do not assume Codex runtime paths or installed dependencies exist on other computers.
+Reading data belongs to the browser profile and origin, not the repository. Another computer/browser or clearing site data will not retain it; JSON backup and Markdown export are available, with local JSON merge/replace restore; cloud sync is not available. Do not assume Codex runtime paths or installed dependencies exist on other computers.
 
 Do not hand-edit generated/vendor directories (`dist/`, `node_modules/`, `.pnpm-store/`) or `*.tsbuildinfo`. Do not modify `.git` internals or erase browser data to fix an application problem. Run relevant tests and the build for code changes; UI changes need targeted browser checks when available, not redundant tests that mirror markup.

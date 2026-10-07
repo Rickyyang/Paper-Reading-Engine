@@ -1,64 +1,63 @@
 # Current development handoff
 
-Verified against the working tree on 2026-10-01. This is current state, not a development diary. Read `docs/AGENTS.md` first.
+Updated 2026-10-07. Read `docs/AGENTS.md` first; there is no root AGENTS.md. Code is authoritative. Inspect only files relevant to the next task.
 
-## Goal and milestone
+## Current goal and status
 
-Test whether a lightweight, manually ChatGPT-assisted paper-reading workflow is useful. Version 0 now has a three-column reading workspace with persisted continuous working sections and a temporary parking lot. Preserve the narrow scope and existing style.
+Version 0 is a local, manually ChatGPT-assisted paper-reading companion. The latest requested implementation is complete: JSON library backup/restore and Markdown paper export share a more visible **▤ Data** menu with Redo reading setup. This turn consolidates documentation only. No new feature is pending authorization.
 
-## Implemented behavior
+The working tree is **uncommitted**, including new untracked export/restore files. Do not discard, commit, or push without user instruction. Moving only committed files to another computer would omit this work; transfer the complete working tree or arrange a user-authorized commit first. Browser reading data is separate: transfer it with JSON export/import.
 
-- New sessions start in setup. Survey order: reading purpose, primary reading goal, background, difficulties, effort, depth. Primary goal defaults to `Basic understanding` and can be replaced.
-- Local prompt prioritizes that primary goal and asks for a concise human-readable plan plus its JSON equivalent. It does not teach the paper or invent background side quests.
-- Imports accept raw JSON, generic/JSON fences, or one marker-wrapped block with surrounding prose. Parsing and schema errors leave the existing session unchanged.
-- Successful import stores `readingPlan`, clears `completedQuestIds`, and enters reading. Setup UI is hidden.
-- Desktop workspace has a narrow hierarchical Part/Quest selector, a larger guidance-and-notes center, and a narrow Parking lot. At 1200px and below these stack in plan, guidance/notes, parking-lot order. Selected items are highlighted; skim material and completion controls/counters are not rendered. One Quest's details are expanded at a time.
-- Initial selection uses the Quest matching both `start_here` IDs, with a first-available-Quest fallback. Selecting a Part shows its objective/checkpoint; selecting a Quest shows its objective, read locations, focus question, and completion condition. These are guidance, not mandatory tasks.
-- A visible but restrained **⋯** control sits upper-right, below Saved locally, aligned with Reading session. Redo reading setup is inside it and preserves existing plan/progress until a valid replacement import.
-- My understanding uses one continuous working Markdown string, rendered above a separate writing draft. Render & continue appends nonblank draft with a blank line, clears and focuses the draft, and does not create a saved section. Edit current section edits the whole raw source with Save edit/Cancel. Save section includes pending draft, records current Part/Quest context, and clears both working fields. Saved Sections appears directly below, all collapsed by default including after saving. Headers show only section number and created timestamp; Part/Quest metadata remains stored but hidden. A local Newest first / Oldest first control changes display order only. Expanded sections reveal rendered content and Edit/Delete. Edit current section sits beside the Current section heading and appears only for nonblank content. Editing preserves ID/createdAt/context and sets updatedAt. Both working Markdown and draft persist locally across session changes/reloads. MarkdownNote and KaTeX rendering remain unchanged; Parking lot remains temporary.
-- Reading Plan folds to clickable Part numbers and Quest IDs with selection highlighting. Parking lot and the far-left app controls sidebar (brand, new session, session list) hide their contents when folded. The paper header stays visible; its former fold control was removed. The app sidebar shrinks from 270px to a 54px desktop rail with an expand button. All folds preserve workspace state and free desktop width for the center. The main workspace has no maximum-width cap, so collapsing the app sidebar uses all freed width even on wide monitors. Fold state is temporary.
-- Previous Quest (bottom-left) and Next Quest (bottom-right) follow imported order across Parts and disable at their respective endpoints. From Part guidance it selects that Part's first Quest. It preserves the draft and never marks completion.
+## Completed product behavior
 
-## Current data contract and decisions
+- Setup survey → deterministic local prompt copied manually to ChatGPT → validated reading-plan import → reading workspace. No backend or AI API.
+- Desktop: hierarchical Reading Plan, guidance + notes, Parking Lot; narrower screens stack them. Parts and Quests are guidance only, with no completion controls or skim material. Previous/Next Quest follows imported order. Selection starts from `start_here`, with first-Quest fallback.
+- Three-line fold controls preserve state and free center width, including the far-left app sidebar. The paper header remains visible. Quest selection, folding, and note sorting are temporary UI state.
+- Notes use one continuous raw Markdown working section plus a separate draft. Render & continue appends with a blank line and clears the draft. Whole-section edit has Save/Cancel. Save section includes pending draft, stores one section with context, and clears both working fields. Both fields persist before saving a section.
+- Saved sections default collapsed; header shows number/time only. Part/Quest metadata is stored but hidden. A top-right unlabeled newest/oldest dropdown changes display order only. Expanded sections have Edit/Delete; deletion asks confirmation. Edit preserves ID/createdAt/context and updates updatedAt.
+- Shared react-markdown + remark-math + rehype-katex renderer; KaTeX CSS is application-level. Raw HTML disabled, KaTeX trust false. Source Markdown/LaTeX is never rewritten or stored as HTML.
 
-`src/readingPlan.ts` is the authoritative import contract:
+## Export/restore decisions and data flow
 
-- Top level: `schema_version: 1`, `record_type: "initial_reading_plan"`, `main_objective`, `route_summary`, `parts`, `skim_for_now`, `start_here`.
-- Part: `id`, `title`, `objective`, `quests`, `checkpoint: { question }`.
-- Quest: `id`, `title`, `objective`, `read: string[]`, `focus_question`, `completion_condition`.
-- Start: `part_id`, `quest_id`, `instruction`, `focus_question`, `completion_condition`.
-- Exact fields and text types are checked; extra fields are rejected. Parts and their Quests must be nonempty and sequentially named P1/P2 and Q1.1/Q1.2/Q2.1. Start must reference an existing Quest within the named Part. Text may be empty; read/skim arrays may be empty. No semantic fact-checking of references is performed.
+- Storage key `paper-reading-companion:v0`, envelope `{version: 1, sessions, activeId}`. App owns session state and normal autosave. Existing legacy session fields remain intact.
+- JSON backup: `{format_version: 1, exported_at, activeId, papers}`. `BACKUP_VERSION` in `src/backup.ts` is shared by export/import. Export serializes full session objects, pretty-printed UTF-8, without state changes. Earlier exports may contain `parkingItems` added from live temporary state; restore accepts those.
+- Session now optionally has `updatedAt` and `parkingItems: {id,text}[]`. Parking items persist so restore/reload retains them. App content updates go through `updateSession`; no-op updates retain timestamps, changed content advances them monotonically. Creation timestamps new sessions; old sessions remain undated until edited. Selection/folding/sorting are not persisted or timestamped.
+- `parseBackup` reads JSON (including optional UTF-8 BOM), rejects missing/unsupported format version, invalid export timestamp/array, malformed sessions/plans, and duplicate/empty paper IDs. It preserves session fields and plan content, defaulting only missing effort/state for compatibility. No state changes before confirmation.
+- Merge matches permanent IDs, adds missing sessions, keeps the newer session timestamp. Identical objects are unchanged regardless of key order or undefined optional properties. Differing equal/undated versions use imported content only after the dialog warns and lists affected titles. No duplicate sessions are created.
+- Replace requires a warning checkbox and confirmation. `persistRestore` writes the whole envelope with atomic localStorage.setItem **before** publishing React state. Write failure leaves old memory/storage intact and displays an error inside the dialog. Success remounts the editor to avoid stale temporary edits/selection and reports counts. Merge keeps local active paper; replace uses backup activeId, otherwise first paper/null.
+- Markdown export behavior is unchanged: current paper only; setup, current-format plan (excluding skim), chronological saved raw sections, working Markdown, unrendered draft, and nonempty Parking Lot. No saving/clearing as a side effect. Legacy savedNotes are used only when workspaceState is absent. Legacy plans get an explanatory sentence in Markdown and remain fully preserved in JSON. Filenames are sanitized; download uses Blob/object URL with delayed revocation.
+- Workspace data: `workspaceState: {workingSection: {markdown,draft}, savedSections: [{id,markdown,createdAt,updatedAt,partId,partTitle,questId,questTitle}]}`. Nullable metadata/dates support legacy notes. `noteSections.ts` converts old savedNotes only if workspaceState is absent, preventing deleted notes from reappearing.
 
-Storage key is `paper-reading-companion:v0`, envelope version 1. Old schema used the same version and `record_type`, so structural legacy recognition remains necessary. Old `main_quest`/top-level `quests`/`starting_point` plans load but do not render as current plans; the page directs users to redo setup. New imports require the current schema.
+## Files to inspect for continuation
 
-Session types retain legacy fields for compatibility. Optional workspaceState holds workingSection { markdown, draft } and savedSections { id, markdown, createdAt, updatedAt, partId, partTitle, questId, questTitle }. Metadata is nullable for migrated notes. New sections always have createdAt; later edits set updatedAt. noteSections.ts supplies legacy savedNotes conversion only when workspaceState is absent; original legacy data remains intact and cannot resurrect deleted sections after workspaceState exists. Storage validates the new fields before loading; malformed data is not overwritten. Only raw Markdown is stored.
+| Files | Responsibility / latest change |
+| --- | --- |
+| `src/backup.ts`, `src/backup.test.ts` (new) | Backup version, validation, merge/replace planning, atomic persistence, content timestamps; restore regression tests |
+| `src/RestoreDialog.tsx` (new) | Modal mode/count/conflict preview, replace acknowledgement, confirmation/cancel/error |
+| `src/exports.ts`, `src/exports.test.ts` (new) | JSON/Markdown generation, filenames, browser download helper and fidelity tests |
+| `src/App.tsx` (modified) | Unified Data menu/file picker, restore transaction, session timestamp wiring and autosave |
+| `src/types.ts`, `src/storage.ts` (modified) | Optional timestamp/parking fields; reusable session validation and exported State type |
+| `src/ReadingWorkspace.tsx` (modified) | Parking items now controlled by Session; selection/guidance/navigation unchanged |
+| `src/styles.css` (modified) | More visible Data control, compact restore dialog |
+| `src/WorkingNotes.tsx`, `src/MarkdownNote.tsx`, `src/noteSections.ts` | Existing working/saved note workflow, rendering and legacy conversion |
+| `src/readingPlan.ts`, `src/parser.ts` | Plan schema/legacy recognition and marked/fenced/raw JSON parsing |
+| `src/prompts.ts`, `src/prompts/initialReadingPlan.ts` | Actual prompt filling path and template; keep `initialReadingPlanPrompt` export aligned |
 
-## Validation and relevant files
+## Plan compatibility
 
-- Note UI verification: all 11 tests pass; browser verified newest/oldest sorting with stable labels, collapsed defaults, hidden metadata, Edit placement, and expanded-only content/actions. A local dev server was started for verification and left running at http://127.0.0.1:5173/.
+Current plan requires `schema_version: 1`, `record_type: initial_reading_plan`, main_objective, route_summary, parts, skim_for_now, start_here. Parts contain id/title/objective/quests/checkpoint.question; Quests contain id/title/objective/read[]/focus_question/completion_condition. Start includes part_id/quest_id/instruction/focus_question/completion_condition. IDs are sequential P1/P2, Q1.1/Q1.2/Q2.1; start must reference an existing Quest. Extra plan fields are rejected by current validation.
 
-- Current section workflow: build and all 11 tests pass. Tests cover raw append, legacy conversion, unfinished-work persistence, edits, deleted-section non-resurrection, and malformed-state rejection. Browser verified repeated rendering as one section, reload recovery of both fields, whole-section Cancel/Save edit, saving pending draft and clearing, default collapses, and saved-section edits with updated timestamp. Existing local server left running; test session retains sample section data.
+Legacy plans with main_quest/top-level quests/starting_point load but do not render as current plans; redo setup imports a replacement. Marker-wrapped responses permit surrounding prose; raw JSON and generic/JSON fences also work. Invalid imports preserve existing data. Redo setup preserves old plan until valid replacement.
 
-- Markdown verification: build and nine tests passed, including raw Markdown/LaTeX storage round-trip. Browser checked all requested Markdown elements, four math expressions with no KaTeX errors, Edit/Preview source preservation, saved-note source after reload, rendering after edit, disabled raw HTML, and horizontal scrolling of long display math. KaTeX increases bundle size and Vite reports its standard chunk-size warning. Existing server left running.
-- Last code verification: TypeScript check and Vite production build passed; all nine Node tests passed (parser, prompt filling/default, storage/legacy migration/completion persistence).
-- Latest note/navigation checks: build and nine tests passed, including metadata validation and legacy notes. Browser verified Previous/Next, Quest and Part-only saving, newest-first ordering, editing with original timestamp, reload persistence, and the deletion confirmation prompt. Existing server left running.
-- Width check: at a 1920px viewport, collapsing the app sidebar expanded main from 1635px to 1851px (the full 216px released). Build and nine tests passed; existing server left running.
-- Sidebar correction: browser-checked app sidebar collapse/expand preserves the selected Quest and unsaved draft while keeping the paper header visible. Build and all nine tests pass. No server started or stopped.
-- Previous browser check: verified folding preserves drafts/parking items, compact plan labels, Next Quest across Parts/final disabled state, saving clears the draft, and saved text survives reload. At 1440px the center grew from about 580px to 787px with both sides folded; mobile had no horizontal overflow. Workspace layout check remains with a saved test note. Existing server used; none started or stopped.
-- Core files for next work: `src/ReadingWorkspace.tsx`, `src/App.tsx`, `src/readingPlan.ts`, `src/storage.ts`, `src/types.ts`, `src/styles.css`.
-- Prompt edits: `src/prompts/initialReadingPlan.ts` plus `src/prompts.ts`. The latter is the UI filling path; the template file also exports a helper not currently called by the UI. Keep exports aligned: a former `initialReadingPlanTemplate` import caused a blank page; this was fixed to `initialReadingPlanPrompt`.
+## Validation and remaining limits
 
-## Known gaps and constraints
-
-- README's response-format section is stale: it shows the old schema, says markers are mandatory, and says extra fields are accepted. Its workflow section is newer. Use the code/schema above until the README is corrected.
-- Setup help text in `App.tsx` says only the marked JSON block is saved, though JSON-only imports are supported. This is a copy discrepancy, not a parsing limitation.
-- Storage is single-browser/origin and intended for one tab. No cross-tab synchronization, backup/export, or cross-computer reading-data transfer exists. These context files transfer development knowledge only.
-- New-machine setup must install dependencies. The previous environment had Node but no npm command, so direct Node tool commands were used. Do not assume this limitation exists elsewhere.
-- Existing uncommitted implementation changes were present when these handoff files were created. Inspect Git status and preserve them; this context task does not commit or push them.
-- No additional runtime defect was established in the last checks. UI automation used local test sessions; do not confuse sample data with user paper content or remove it without authorization.
+- Latest implementation verification: `pnpm test` **19 passed**; `pnpm run build` passed. Tests cover invalid/unsupported backups, duplicates, merge conflicts/newer versions, raw Unicode/LaTeX, unfinished work, nonmutation, persistence failure/reload, filenames, and Blob cleanup. Vite still reports the nonfatal >500 kB bundle warning from Markdown/KaTeX.
+- Browser verified unified menu, local file picker, default Merge/count preview, disabled Replace until acknowledgement, and Cancel returning to unchanged notes. Destructive replace was tested with isolated fake storage, not against the real browser library. Full successful restore/re-export in a disposable browser library remains a useful end-to-end check.
+- Automated export download-event wait timed out in the in-app browser. Do not treat that as a confirmed export defect or claim completed browser downloads were verified. Generation/helper tests pass; manually checking actual downloaded files is still useful.
+- Existing dev server was left running at `http://127.0.0.1:5173/` during implementation; do not assume it survives restart or exists on another computer. Browser sample session “Workspace layout check” contains test notes; do not delete it without permission.
+- README response-format section is stale (old schema, mandatory markers, extra fields accepted). Setup help still says only marked JSON is saved. Code above is authoritative; documentation/copy correction has not been implemented.
+- Backup restore uses current session validation; arbitrary ancient pre-survey-migration data is not guaranteed compatible. Backups exported by the current export feature are the intended input. No cloud/cross-tab sync; only explicit file transfer. Temporary whole-section edit buffers and unsubmitted parking input are not persisted; working Markdown/draft and added parking items are.
 
 ## Next recommended step
 
-Correct stale README import documentation and setup helper copy when requested. Collect the user's next workspace requirement. Do not independently add formatting toolbars, WYSIWYG, side quests, automatic progression, or a new workflow.
-
-Before ending substantial future sessions, update this file to state what changed, what remains unresolved, and the next useful step; replace outdated entries instead of appending a log.
+On another computer, bring all uncommitted/new files, install with `pnpm install --frozen-lockfile`, run `pnpm test` and `pnpm run build`, then start `pnpm run dev`. See AGENTS for Node requirements and direct commands. To close the remaining verification gap, use a disposable library to check actual JSON download → merge/replace → reload → re-export and inspect Markdown output. Do not replace the user's real library for testing. Otherwise wait for the next requested feature; fix stale README/setup copy when requested. Do not add sync, integrations, rich-text tools, or new reading workflows speculatively.

@@ -169,6 +169,35 @@ main {
 .plan-options summary::-webkit-details-marker {
   display: none;
 }
+.export-options summary {
+  font-size: 14px;
+  font-weight: 600;
+  padding: 8px 12px;
+}
+.restore-dialog {
+  width: min(480px, calc(100% - 32px));
+  max-height: 85vh;
+  overflow: auto;
+  border: 1px solid #b7c9bc;
+  border-radius: 10px;
+  padding: 24px;
+  color: #24332e;
+}
+.restore-dialog::backdrop {
+  background: #24332e55;
+}
+.replace-confirm {
+  display: flex;
+  gap: 10px;
+  align-items: start;
+}
+.replace-confirm input {
+  width: auto;
+  margin-top: 4px;
+}
+.export-options .plan-options-panel {
+  min-width: 200px;
+}
 .plan-options summary:focus-visible {
   outline: 2px solid #4c8a70;
   outline-offset: 2px;

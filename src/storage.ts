@@ -5,17 +5,28 @@ import {
   validateInitialReadingPlan,
 } from "./readingPlan.ts";
 const KEY = "paper-reading-companion:v0";
-type State = { sessions: Session[]; activeId: string | null };
+export type State = { sessions: Session[]; activeId: string | null };
 const isTask = (t: any): boolean =>
   t &&
   typeof t.id === "string" &&
   typeof t.title === "string" &&
   typeof t.done === "boolean";
-function isSession(s: any): boolean {
+export function isSession(s: any): s is Session {
   return (
     s &&
     typeof s.id === "string" &&
     typeof s.title === "string" &&
+    (s.updatedAt === undefined ||
+      (typeof s.updatedAt === "string" &&
+        Number.isFinite(Date.parse(s.updatedAt)))) &&
+    (s.parkingItems === undefined ||
+      (Array.isArray(s.parkingItems) &&
+        s.parkingItems.every(
+          (item: any) =>
+            item &&
+            typeof item.id === "string" &&
+            typeof item.text === "string",
+        ))) &&
     (s.workspaceState === undefined || isNoteWorkspace(s.workspaceState)) &&
     (s.savedNotes === undefined ||
       (Array.isArray(s.savedNotes) &&

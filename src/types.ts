@@ -20,6 +20,8 @@ export type SavedNote = {
   questTitle?: string;
 };
 export type Session = {
+  updatedAt?: string;
+  parkingItems?: { id: string; text: string }[];
   workspaceState?: NoteWorkspaceState;
   id: string;
   title: string;

@@ -1,4 +1,5 @@
 import { useState } from "react";
+import type { ParkingItem } from "./exports";
 import type { InitialReadingPlan } from "./readingPlan";
 import type { NoteWorkspaceState } from "./types";
 import { WorkingNotes } from "./WorkingNotes";
@@ -9,10 +10,14 @@ export function ReadingWorkspace({
   plan,
   workspaceState,
   onWorkspaceChange,
+  onParkingChange,
+  parkingItems,
 }: {
   plan: InitialReadingPlan;
   workspaceState: NoteWorkspaceState;
   onWorkspaceChange: (state: NoteWorkspaceState) => void;
+  onParkingChange: (items: ParkingItem[]) => void;
+  parkingItems: ParkingItem[];
 }) {
   const [selection, setSelection] = useState<Selection>(() => {
     const startPart = plan.parts.find(
@@ -32,9 +37,6 @@ export function ReadingWorkspace({
   const [planCollapsed, setPlanCollapsed] = useState(false);
   const [parkingCollapsed, setParkingCollapsed] = useState(false);
   const [parkingDraft, setParkingDraft] = useState("");
-  const [parkingItems, setParkingItems] = useState<
-    { id: string; text: string }[]
-  >([]);
   const part = plan.parts.find((item) => item.id === selection.partId);
   const quest = part?.quests.find((item) => item.id === selection.questId);
   const questOrder = plan.parts.flatMap((item) =>
@@ -198,14 +200,14 @@ export function ReadingWorkspace({
             Record questions or concepts without leaving the current reading
             thread.
           </p>
-          <p className="muted small">Temporary items; not saved.</p>
+          <p className="muted small">Saved locally with this paper.</p>
           <form
             onSubmit={(event) => {
               event.preventDefault();
               const text = parkingDraft.trim();
               if (!text) return;
-              setParkingItems((items) => [
-                ...items,
+              onParkingChange([
+                ...parkingItems,
                 { id: crypto.randomUUID(), text },
               ]);
               setParkingDraft("");
@@ -230,8 +232,8 @@ export function ReadingWorkspace({
                   className="quiet"
                   aria-label={`Remove ${item.text}`}
                   onClick={() =>
-                    setParkingItems((items) =>
-                      items.filter((entry) => entry.id !== item.id),
+                    onParkingChange(
+                      parkingItems.filter((entry) => entry.id !== item.id),
                     )
                   }
                 >
