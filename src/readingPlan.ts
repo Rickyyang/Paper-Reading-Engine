@@ -1,3 +1,4 @@
+import { UiError } from "./translations.ts";
 export const IMPORT_START = "--- PAPER_READER_IMPORT_START ---";
 export const IMPORT_END = "--- PAPER_READER_IMPORT_END ---";
 
@@ -62,24 +63,21 @@ function object(
   fields: string[],
 ): Record<string, unknown> {
   if (!value || typeof value !== "object" || Array.isArray(value))
-    throw new Error(`${path} must be an object.`);
+    throw new UiError("mustObject", { path });
   const record = value as Record<string, unknown>;
   for (const field of fields)
     if (!Object.hasOwn(record, field))
-      throw new Error(`${path}.${field} is required.`);
+      throw new UiError("required", { path: `${path}.${field}` });
   for (const field of Object.keys(record))
     if (!fields.includes(field))
-      throw new Error(
-        `${path}.${field} is not part of the reading-plan schema.`,
-      );
+      throw new UiError("unknownField", { path: `${path}.${field}` });
   return record;
 }
 function text(value: unknown, path: string): asserts value is string {
-  if (typeof value !== "string") throw new Error(`${path} must be a string.`);
+  if (typeof value !== "string") throw new UiError("mustString", { path });
 }
 function strings(value: unknown, path: string): void {
-  if (!Array.isArray(value))
-    throw new Error(`${path} must be an array of strings.`);
+  if (!Array.isArray(value)) throw new UiError("mustStrings", { path });
   value.forEach((item, index) => text(item, `${path}[${index}]`));
 }
 export function validateInitialReadingPlan(
@@ -94,15 +92,14 @@ export function validateInitialReadingPlan(
     "skim_for_now",
     "start_here",
   ]);
-  if (plan.schema_version !== 1)
-    throw new Error("schema_version must be the number 1.");
+  if (plan.schema_version !== 1) throw new UiError("schemaVersion");
   if (plan.record_type !== "initial_reading_plan")
-    throw new Error('record_type must be "initial_reading_plan".');
+    throw new UiError("recordType");
   text(plan.main_objective, "main_objective");
   text(plan.route_summary, "route_summary");
   strings(plan.skim_for_now, "skim_for_now");
   if (!Array.isArray(plan.parts) || !plan.parts.length)
-    throw new Error("parts must be a non-empty array.");
+    throw new UiError("nonemptyArray", { path: "parts" });
   const questParts = new Map<string, string>();
   plan.parts.forEach((item, index) => {
     const path = `parts[${index}]`;
@@ -114,7 +111,8 @@ export function validateInitialReadingPlan(
       "checkpoint",
     ]);
     const partId = `P${index + 1}`;
-    if (part.id !== partId) throw new Error(`${path}.id must be "${partId}".`);
+    if (part.id !== partId)
+      throw new UiError("mustId", { path: `${path}.id`, id: partId });
     text(part.title, `${path}.title`);
     text(part.objective, `${path}.objective`);
     const checkpoint = object(part.checkpoint, `${path}.checkpoint`, [
@@ -122,7 +120,7 @@ export function validateInitialReadingPlan(
     ]);
     text(checkpoint.question, `${path}.checkpoint.question`);
     if (!Array.isArray(part.quests) || !part.quests.length)
-      throw new Error(`${path}.quests must be a non-empty array.`);
+      throw new UiError("nonemptyArray", { path: `${path}.quests` });
     part.quests.forEach((item, questIndex) => {
       const questPath = `${path}.quests[${questIndex}]`;
       const quest = object(item, questPath, [
@@ -135,7 +133,7 @@ export function validateInitialReadingPlan(
       ]);
       const questId = `Q${index + 1}.${questIndex + 1}`;
       if (quest.id !== questId)
-        throw new Error(`${questPath}.id must be "${questId}".`);
+        throw new UiError("mustId", { path: `${questPath}.id`, id: questId });
       for (const field of [
         "title",
         "objective",
@@ -160,7 +158,5 @@ export function validateInitialReadingPlan(
     !questParts.has(start.quest_id as string) ||
     questParts.get(start.quest_id as string) !== start.part_id
   )
-    throw new Error(
-      "start_here must reference an existing quest within the specified part.",
-    );
+    throw new UiError("startReference");
 }

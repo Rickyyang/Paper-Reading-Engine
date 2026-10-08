@@ -6,7 +6,10 @@ import {
   exportPaperAsMarkdown,
   paperMarkdownFilename,
   libraryFilename,
+  exportSessionAsJson,
+  sessionJsonFilename,
 } from "./exports.ts";
+import { parseBackup } from "./backup.ts";
 import { emptySurvey, type Session } from "./types.ts";
 
 const math =
@@ -108,6 +111,25 @@ test("JSON backup preserves every session, raw Unicode/math, IDs and timestamps 
   ]);
   assert.ok(text.includes('\n  "papers":'));
   assert.deepEqual(sessions, before);
+});
+
+test("single-session JSON is restorable and preserves all raw session fields without mutation", () => {
+  const session = {
+    ...paper(),
+    updatedAt: "2026-10-08T00:00:00Z",
+    parkingItems: [{ id: "p", text: math }],
+  };
+  const before = structuredClone(session);
+  const restored = parseBackup(exportSessionAsJson(session));
+  assert.deepEqual(restored.papers, [before]);
+  assert.equal(restored.activeId, session.id);
+  assert.deepEqual(session, before);
+  assert.equal(
+    sessionJsonFilename(session.title),
+    "论文-Robust-Tubes-session.json",
+  );
+  assert.equal(sessionJsonFilename("CON"), "Paper-CON-session.json");
+  assert.equal(sessionJsonFilename(" /:*? "), "Untitled-paper-session.json");
 });
 
 test("Markdown exports chronological raw sections and unfinished work once without saving or rewriting", () => {

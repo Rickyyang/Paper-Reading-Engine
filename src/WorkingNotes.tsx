@@ -1,20 +1,33 @@
-import { useRef, useState } from "react";
+import { translations, formatMessage } from "./translations";
+import type { PromptLanguage } from "./prompts";
+import { useEffect, useRef, useState } from "react";
 import type { NoteWorkspaceState, SavedSection } from "./types";
 import { appendDraft } from "./noteSections";
 import { MarkdownNote } from "./MarkdownNote";
 
 type Context = { id: string; title: string };
 export function WorkingNotes({
+  language,
   state,
   onChange,
   part,
   quest,
 }: {
+  language: PromptLanguage;
   state: NoteWorkspaceState;
   onChange: (state: NoteWorkspaceState) => void;
   part?: Context;
   quest?: Context;
 }) {
+  const t = translations[language];
+  const [deleteId, setDeleteId] = useState<string | null>(null);
+  const deleteDialog = useRef<HTMLDialogElement>(null);
+  useEffect(() => {
+    if (!deleteId) return;
+    const dialog = deleteDialog.current!;
+    dialog.showModal();
+    return () => dialog.close();
+  }, [deleteId]);
   const { workingSection, savedSections } = state;
   const draftRef = useRef<HTMLTextAreaElement>(null);
   const [sectionEdit, setSectionEdit] = useState<string | null>(null);
@@ -37,26 +50,23 @@ export function WorkingNotes({
   return (
     <>
       <section className="panel understanding-panel">
-        <h2>My understanding</h2>
-        <p className="muted small">
-          Keep writing one section. Your working section and draft are saved
-          locally.
-        </p>
+        <h2>{t.understanding}</h2>
+        <p className="muted small">{t.notesHelp}</p>
         <div className="current-section-heading">
-          <div className="eyebrow">Current section</div>
+          <div className="eyebrow">{t.currentSection}</div>
           {workingSection.markdown.trim() && sectionEdit === null && (
             <button
               type="button"
               className="quiet"
               onClick={() => setSectionEdit(workingSection.markdown)}
             >
-              Edit current section
+              {t.editCurrent}
             </button>
           )}
         </div>
         {sectionEdit !== null ? (
           <div>
-            <label htmlFor="current-section-edit">Edit current section</label>
+            <label htmlFor="current-section-edit">{t.editCurrent}</label>
             <textarea
               id="current-section-edit"
               rows={12}
@@ -77,14 +87,14 @@ export function WorkingNotes({
                   setSectionEdit(null);
                 }}
               >
-                Save edit
+                {t.saveEdit}
               </button>
               <button
                 type="button"
                 className="quiet"
                 onClick={() => setSectionEdit(null)}
               >
-                Cancel
+                {t.cancel}
               </button>
             </div>
           </div>
@@ -92,16 +102,16 @@ export function WorkingNotes({
           <div
             className="working-section"
             role="region"
-            aria-label="Current working section"
+            aria-label={t.currentWorking}
           >
             {workingSection.markdown ? (
               <MarkdownNote text={workingSection.markdown} />
             ) : (
-              <p className="muted">Your current section will appear here.</p>
+              <p className="muted">{t.sectionPlaceholder}</p>
             )}
           </div>
         )}
-        <label htmlFor="section-draft">Write next:</label>
+        <label htmlFor="section-draft">{t.writeNext}</label>
         <textarea
           ref={draftRef}
           id="section-draft"
@@ -133,7 +143,7 @@ export function WorkingNotes({
               draftRef.current?.focus();
             }}
           >
-            Render &amp; continue
+            {t.renderContinue}
           </button>
 
           <button
@@ -166,7 +176,7 @@ export function WorkingNotes({
               draftRef.current?.focus();
             }}
           >
-            Save section
+            {t.saveSection}
           </button>
         </div>
       </section>
@@ -175,15 +185,15 @@ export function WorkingNotes({
         aria-labelledby="saved-sections-title"
       >
         <div className="saved-sections-heading">
-          <h2 id="saved-sections-title">Saved Sections</h2>
+          <h2 id="saved-sections-title">{t.savedSections}</h2>
           <div className="section-sort">
             <select
-              aria-label="Sort sections"
+              aria-label={t.sortSections}
               value={sortOrder}
               onChange={(event) => setSortOrder(event.target.value)}
             >
-              <option value="newest">Newest first</option>
-              <option value="oldest">Oldest first</option>
+              <option value="newest">{t.newestFirst}</option>
+              <option value="oldest">{t.oldestFirst}</option>
             </select>
           </div>
         </div>
@@ -204,14 +214,17 @@ export function WorkingNotes({
                 }
               >
                 <span>
-                  {openSections.includes(section.id) ? "▾" : "▸"} Section{" "}
-                  {newest.length -
-                    newest.findIndex((item) => item.id === section.id)}
+                  {openSections.includes(section.id) ? "▾" : "▸"}{" "}
+                  {formatMessage(language, "sectionNumber", {
+                    number:
+                      newest.length -
+                      newest.findIndex((item) => item.id === section.id),
+                  })}
                 </span>
                 <span className="small">
                   {section.createdAt
-                    ? new Date(section.createdAt).toLocaleString()
-                    : "Saved time unavailable"}
+                    ? new Date(section.createdAt).toLocaleString(language)
+                    : t.timeUnavailable}
                 </span>
               </button>
               <div
@@ -220,9 +233,7 @@ export function WorkingNotes({
               >
                 {savedEdit?.id === section.id ? (
                   <>
-                    <label htmlFor={`edit-${section.id}`}>
-                      Edit saved section
-                    </label>
+                    <label htmlFor={`edit-${section.id}`}>{t.editSaved}</label>
                     <textarea
                       id={`edit-${section.id}`}
                       rows={10}
@@ -254,14 +265,14 @@ export function WorkingNotes({
                           setSavedEdit(null);
                         }}
                       >
-                        Save changes
+                        {t.saveChanges}
                       </button>
                       <button
                         type="button"
                         className="quiet"
                         onClick={() => setSavedEdit(null)}
                       >
-                        Cancel
+                        {t.cancel}
                       </button>
                     </div>
                   </>
@@ -279,23 +290,14 @@ export function WorkingNotes({
                           })
                         }
                       >
-                        Edit
+                        {t.edit}
                       </button>
                       <button
                         type="button"
                         className="quiet"
-                        onClick={() => {
-                          if (
-                            window.confirm("Permanently delete this section?")
-                          )
-                            updateSections(
-                              savedSections.filter(
-                                (item) => item.id !== section.id,
-                              ),
-                            );
-                        }}
+                        onClick={() => setDeleteId(section.id)}
                       >
-                        Delete
+                        {t.delete}
                       </button>
                     </div>
                   </>
@@ -304,9 +306,39 @@ export function WorkingNotes({
             </div>
           ))
         ) : (
-          <p className="muted">No saved sections yet.</p>
+          <p className="muted">{t.noSavedSections}</p>
         )}
       </section>
+      {deleteId && (
+        <dialog
+          ref={deleteDialog}
+          className="restore-dialog"
+          aria-labelledby="delete-section-title"
+          onCancel={() => setDeleteId(null)}
+        >
+          <h2 id="delete-section-title">{t.deleteSectionQuestion}</h2>
+          <div className="note-actions">
+            <button
+              className="quiet"
+              autoFocus
+              onClick={() => setDeleteId(null)}
+            >
+              {t.cancel}
+            </button>
+            <button
+              className="delete-confirm"
+              onClick={() => {
+                updateSections(
+                  savedSections.filter((section) => section.id !== deleteId),
+                );
+                setDeleteId(null);
+              }}
+            >
+              {t.delete}
+            </button>
+          </div>
+        </dialog>
+      )}
     </>
   );
 }

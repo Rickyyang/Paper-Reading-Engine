@@ -1,14 +1,43 @@
 # Current development handoff
 
-Updated 2026-10-07. Read `docs/AGENTS.md` first; there is no root AGENTS.md. Code is authoritative. Inspect only files relevant to the next task.
+Updated 2026-10-08. Read `docs/AGENTS.md` first; there is no root AGENTS.md. Code is authoritative. Inspect only files relevant to the next task.
 
 ## Current goal and status
 
-Version 0 is a local, manually ChatGPT-assisted paper-reading companion. The latest requested implementation is complete: JSON library backup/restore and Markdown paper export share a more visible **▤ Data** menu with Redo reading setup. This turn consolidates documentation only. No new feature is pending authorization.
+Version 0 is a local, manually ChatGPT-assisted paper-reading companion. JSON library backup/restore and Markdown paper export share a **▤ Data** menu with Redo reading setup. Cross-computer startup repair is complete; no new feature is pending authorization.
 
-The working tree is **uncommitted**, including new untracked export/restore files. Do not discard, commit, or push without user instruction. Moving only committed files to another computer would omit this work; transfer the complete working tree or arrange a user-authorized commit first. Browser reading data is separate: transfer it with JSON export/import.
+Current milestone: full English/Simplified Chinese UI localization is complete. Existing launcher, prompt, and sidebar-menu edits remain uncommitted. Browser reading data is separate: transfer it with JSON export/import.
+
+## Latest localization milestone
+
+- All fixed UI text in App, SurveyForm, ReadingWorkspace, WorkingNotes, RestoreDialog, and SessionList now uses `translations.ts`; includes aria labels, placeholders, empty/legacy states, menus, confirmation/warning/error messages, restore counts, document title/lang, and date formatting. No runtime translation or new dependency.
+- Validation throws `UiError` with a dictionary key and parameters. Its English Error.message is unchanged for tests/non-UI consumers; UI feedback localizes at render time so switching language updates existing errors. Schema keys/paths remain English. Backup planning additionally exposes structured summary parameters; merge/replace logic is unchanged.
+- New sessions default to 基本理解 in Chinese and Basic understanding in English. Existing goals/answers never change on a language switch. Depth labels translate but stored enum values stay English. Prompt selection/substitution and both predefined templates remain unchanged.
+- Note deletion uses an app-owned modal (same confirmation behavior) so Cancel/Delete labels follow app language instead of browser/OS language. Raw notes, GPT plans, titles, Parking Lot entries, saved Markdown/LaTeX, and export formats are unchanged. Setup helper/placeholder now accurately describes marker-wrapped responses and optional markers for JSON-only input.
+- Type check, production build, and all 26 tests pass. Added dictionary/parameter parity, literal interpolation, structured-error localization, restore counts, and default-goal tests. Existing nonfatal bundle-size warning remains.
+- Browser verified EN ↔ 中 on setup/reading, existing validation feedback, empty state, Chinese new-session default, depth labels, raw English/LaTeX note preservation, saved-note edit/cancel and delete/cancel, Data menu, and merge/replace preview/warning/cancel. No destructive restore/deletion performed. File-picker automation was slow but the restore-dialog check succeeded.
+- Used a separate test origin on port 5174 for created test data; its server was stopped. Original server on 5173 was reused and left running; original selection/language restored. Temporary fixture files removed. A localization test session exists only in browser storage on the test origin.
+
+## Latest session-menu milestone
+
+- `SessionList.tsx` renders a bottom-right ⋯ beside each status. One portal dropdown avoids sidebar clipping; outside click, focus leaving, Escape, action selection, scrolling/resizing, and sidebar folding dismiss it. Opening another card's menu does not select that card.
+- Redo uses the existing setup transition and preserves plan/notes. Session JSON reuses the library backup envelope with exactly one complete session and a sanitized title-based filename; the existing importer can restore it. Global Data controls are unchanged.
+- Delete requires a native modal naming the session, initially focused on Cancel. App saves the filtered library before publishing state; failure keeps the dialog/error and original session. Deleting the active session selects the first remaining session, or shows the empty state.
+- Session menu/status strings share the complete UI dictionary and 中 / EN preference.
+- Type check, production build, and 22 tests pass, including single-session export/parse fidelity and nonmutation. Existing bundle-size warning remains. Browser verified menu placement, both languages, non-selected card action targeting, exclusive menus, outside dismissal, and deletion Cancel without changing real data. Actual deletion and file download were not exercised against the user's library. Existing dev server was reused and left running.
+
+## Latest startup diagnosis and repair
+
+- Confirmed this computer retained older `node_modules` after pulling newer source. `react-markdown`, `remark-math`, `rehype-katex`, and `katex` were absent. TypeScript could not resolve the Markdown modules; Vite could not resolve `katex/dist/katex.min.css`, preventing startup.
+- `pnpm install --frozen-lockfile` installed the missing locked dependencies without changing package.json or pnpm-lock.yaml. Git does not transfer or update node_modules.
+- The Windows launcher now checks package manifests for all declared dependencies and devDependencies before starting Vite, and directs users to the locked install command if any are missing. It checks presence, not version freshness: always install after a pull that changes dependencies/lockfile. Type-only packages must not be checked with require.resolve(packageName), since they have no runtime entry point.
+- Type check, production build and all 19 tests passed after repair; browser visibly rendered the reading workspace and notes/Parking Lot controls. No user data was changed in verification. The existing nonfatal >500 kB bundle warning remains.
+- The test server started for this repair was stopped afterward, leaving the port available for the user's launcher. Do not assume any dev server is currently running.
 
 ## Completed product behavior
+
+- Prompt localization: separate `initialReadingPlan.en.ts` and `initialReadingPlan.zhCN.ts` templates share six placeholders and identical JSON schema. `filledPrompt(session, language)` selects the template. The original module retains English compatibility exports. 中 / EN selects prompt and all UI language without translating stored answers. Preference is stored separately at `paper-reading-companion:language` (English default). No runtime translation or icon dependency.
+- Localization checks: type check/build and all 21 tests pass, including schema/placeholder parity and survey nonmutation. Browser session “Prompt language check” verified Chinese preview with unchanged answers. Existing dev server was reused and left running.
 
 - Setup survey → deterministic local prompt copied manually to ChatGPT → validated reading-plan import → reading workspace. No backend or AI API.
 - Desktop: hierarchical Reading Plan, guidance + notes, Parking Lot; narrower screens stack them. Parts and Quests are guidance only, with no completion controls or skim material. Previous/Next Quest follows imported order. Selection starts from `start_here`, with first-Quest fallback.
@@ -54,10 +83,10 @@ Legacy plans with main_quest/top-level quests/starting_point load but do not ren
 - Latest implementation verification: `pnpm test` **19 passed**; `pnpm run build` passed. Tests cover invalid/unsupported backups, duplicates, merge conflicts/newer versions, raw Unicode/LaTeX, unfinished work, nonmutation, persistence failure/reload, filenames, and Blob cleanup. Vite still reports the nonfatal >500 kB bundle warning from Markdown/KaTeX.
 - Browser verified unified menu, local file picker, default Merge/count preview, disabled Replace until acknowledgement, and Cancel returning to unchanged notes. Destructive replace was tested with isolated fake storage, not against the real browser library. Full successful restore/re-export in a disposable browser library remains a useful end-to-end check.
 - Automated export download-event wait timed out in the in-app browser. Do not treat that as a confirmed export defect or claim completed browser downloads were verified. Generation/helper tests pass; manually checking actual downloaded files is still useful.
-- Existing dev server was left running at `http://127.0.0.1:5173/` during implementation; do not assume it survives restart or exists on another computer. Browser sample session “Workspace layout check” contains test notes; do not delete it without permission.
-- README response-format section is stale (old schema, mandatory markers, extra fields accepted). Setup help still says only marked JSON is saved. Code above is authoritative; documentation/copy correction has not been implemented.
+- Browser sample session “Workspace layout check” was used in prior implementation; do not delete sample or real reading data without permission. Server lifecycle for the latest repair is recorded above.
+- README documents locked dependency installation after pulls, launcher troubleshooting, the current Parts/Quests import schema and optional markers, notes/Parking Lot, Data export/restore, and complete UI language behavior. Its JSON example was checked through the real parser. Setup helper copy now reflects optional markers for JSON-only input.
 - Backup restore uses current session validation; arbitrary ancient pre-survey-migration data is not guaranteed compatible. Backups exported by the current export feature are the intended input. No cloud/cross-tab sync; only explicit file transfer. Temporary whole-section edit buffers and unsubmitted parking input are not persisted; working Markdown/draft and added parking items are.
 
 ## Next recommended step
 
-On another computer, bring all uncommitted/new files, install with `pnpm install --frozen-lockfile`, run `pnpm test` and `pnpm run build`, then start `pnpm run dev`. See AGENTS for Node requirements and direct commands. To close the remaining verification gap, use a disposable library to check actual JSON download → merge/replace → reload → re-export and inspect Markdown output. Do not replace the user's real library for testing. Otherwise wait for the next requested feature; fix stale README/setup copy when requested. Do not add sync, integrations, rich-text tools, or new reading workflows speculatively.
+After pulling onto another computer, install with `pnpm install --frozen-lockfile`, run `pnpm test` and `pnpm run build`, then use the launcher or `pnpm run dev`. Do not copy node_modules between machines. The remaining product verification gap is actual JSON download → merge/replace → reload → re-export and Markdown inspection in a disposable library, without replacing the user's real library. Otherwise wait for the next requested feature. New interface strings must include both dictionary entries. Do not add sync, integrations, rich-text tools, or new reading workflows speculatively.

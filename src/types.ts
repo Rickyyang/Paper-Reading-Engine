@@ -50,10 +50,10 @@ export type NoteWorkspaceState = {
   workingSection: { markdown: string; draft: string };
   savedSections: SavedSection[];
 };
-export const emptySurvey = (): Survey => ({
+export const emptySurvey = (primaryGoal = "Basic understanding"): Survey => ({
   reading_purpose: "",
   background: "",
-  primary_reading_goal: "Basic understanding",
+  primary_reading_goal: primaryGoal,
   depth: "Working understanding",
   difficulties: "",
   effort: "",

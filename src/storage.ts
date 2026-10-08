@@ -1,3 +1,4 @@
+import { UiError } from "./translations.ts";
 import type { Session } from "./types";
 import { isNoteWorkspace } from "./noteSections.ts";
 import {
@@ -105,9 +106,7 @@ export function load(): State {
     !data.sessions.every(isSession) ||
     !(data.activeId === null || typeof data.activeId === "string")
   )
-    throw new Error(
-      "Saved data could not be read. It has not been overwritten.",
-    );
+    throw new UiError("savedDataInvalid");
   return {
     sessions: data.sessions.map((session: Session) => {
       if (

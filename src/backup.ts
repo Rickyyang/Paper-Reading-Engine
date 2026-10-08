@@ -1,3 +1,9 @@
+import {
+  UiError,
+  formatMessage,
+  type MessageKey,
+  type MessageValues,
+} from "./translations.ts";
 import type { Session } from "./types.ts";
 import { isSession, save, type State } from "./storage.ts";
 import {
@@ -17,33 +23,27 @@ export function parseBackup(text: string): Backup {
   try {
     value = JSON.parse(text.replace(/^\uFEFF/, ""));
   } catch {
-    throw new Error(
-      "Invalid JSON. Select a JSON backup exported by this application.",
-    );
+    throw new UiError("invalidBackupJson");
   }
   if (
     !value ||
     typeof value !== "object" ||
     !Object.hasOwn(value, "format_version")
   )
-    throw new Error("Invalid backup: format_version is missing.");
+    throw new UiError("missingVersion");
   if (value.format_version !== BACKUP_VERSION)
-    throw new Error(
-      "Unsupported backup version. Only format_version 1 is supported.",
-    );
+    throw new UiError("unsupportedVersion");
   if (
     typeof value.exported_at !== "string" ||
     !Number.isFinite(Date.parse(value.exported_at)) ||
     !Array.isArray(value.papers)
   )
-    throw new Error(
-      "Invalid backup: exported_at must be a timestamp and papers must be an array.",
-    );
+    throw new UiError("invalidEnvelope");
   const ids = new Set<string>();
   const papers = value.papers.map((paper: unknown, index: number) => {
     try {
       if (!isSession(paper) || !paper.id.trim() || ids.has(paper.id))
-        throw new Error("Malformed session or duplicate paper ID.");
+        throw new UiError("invalidSession");
       if (
         paper.readingPlan !== undefined &&
         !isLegacyReadingPlan(paper.readingPlan)
@@ -58,9 +58,7 @@ export function parseBackup(text: string): Backup {
           (paper.readingPlan || paper.quests.length ? "reading" : "setup"),
       };
     } catch {
-      throw new Error(
-        `Invalid paper/session data at paper ${index + 1}. Check its fields, reading plan, timestamps, and unique ID.`,
-      );
+      throw new UiError("invalidPaper", { number: index + 1 });
     }
   });
   return { ...value, papers };
@@ -108,13 +106,20 @@ export function planRestore(
   const activeId = sessions.some((p) => p.id === preferred)
     ? preferred!
     : (sessions[0]?.id ?? null);
+  const summaryKey: MessageKey =
+    mode === "replace" ? "restoredCount" : "mergeCounts";
+  const summaryValues: MessageValues = {
+    count: sessions.length,
+    added,
+    updated,
+    unchanged: current.sessions.length - updated,
+  };
   return {
     state: { sessions, activeId },
     conflicts,
-    summary:
-      mode === "replace"
-        ? `${sessions.length} papers restored`
-        : `${added} papers added · ${updated} papers updated · ${current.sessions.length - updated} local papers unchanged`,
+    summaryKey,
+    summaryValues,
+    summary: formatMessage("en", summaryKey, summaryValues),
   };
 }
 

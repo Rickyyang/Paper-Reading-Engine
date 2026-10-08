@@ -1,3 +1,5 @@
+import { translations, formatMessage } from "./translations";
+import type { PromptLanguage } from "./prompts";
 import { useState } from "react";
 import type { ParkingItem } from "./exports";
 import type { InitialReadingPlan } from "./readingPlan";
@@ -7,18 +9,21 @@ import { WorkingNotes } from "./WorkingNotes";
 type Selection = { partId: string; questId?: string };
 
 export function ReadingWorkspace({
+  language,
   plan,
   workspaceState,
   onWorkspaceChange,
   onParkingChange,
   parkingItems,
 }: {
+  language: PromptLanguage;
   plan: InitialReadingPlan;
   workspaceState: NoteWorkspaceState;
   onWorkspaceChange: (state: NoteWorkspaceState) => void;
   onParkingChange: (items: ParkingItem[]) => void;
   parkingItems: ParkingItem[];
 }) {
+  const t = translations[language];
   const [selection, setSelection] = useState<Selection>(() => {
     const startPart = plan.parts.find(
       (part) => part.id === plan.start_here.part_id,
@@ -58,15 +63,15 @@ export function ReadingWorkspace({
   return (
     <section
       className={`reading-workspace ${planCollapsed ? "plan-collapsed" : ""} ${parkingCollapsed ? "parking-collapsed" : ""}`}
-      aria-label="Reading workspace"
+      aria-label={t.readingWorkspace}
     >
-      <nav className="panel reading-plan" aria-label="Reading plan">
+      <nav className="panel reading-plan" aria-label={t.readingPlan}>
         <div className="panel-heading">
-          <h2>Reading plan</h2>
+          <h2>{t.readingPlan}</h2>
           <button
             type="button"
             className="quiet fold-toggle"
-            aria-label={`${planCollapsed ? "Expand" : "Collapse"} Reading plan`}
+            aria-label={planCollapsed ? t.expandPlan : t.collapsePlan}
             aria-expanded={!planCollapsed}
             aria-controls="plan-outline"
             onClick={() => setPlanCollapsed(!planCollapsed)}
@@ -87,7 +92,11 @@ export function ReadingWorkspace({
                 }
                 onClick={() => setSelection({ partId: item.id })}
               >
-                <span className="eyebrow">Part {item.id.slice(1)}</span>
+                <span className="eyebrow">
+                  {formatMessage(language, "partNumber", {
+                    number: item.id.slice(1),
+                  })}
+                </span>
                 <span hidden={planCollapsed}>{item.title}</span>
               </button>
               <ul className="plan-quests">
@@ -119,18 +128,22 @@ export function ReadingWorkspace({
       <div className="reading-center">
         <section
           className="panel reading-guidance"
-          aria-label="Reading guidance"
+          aria-label={t.readingGuidance}
         >
           <div className="eyebrow">
-            {quest ? `Quest ${quest.id}` : `Part ${part?.id.slice(1) ?? ""}`}
+            {quest
+              ? formatMessage(language, "questNumber", { id: quest.id })
+              : formatMessage(language, "partNumber", {
+                  number: part?.id.slice(1) ?? "",
+                })}
           </div>
-          <h2>{quest?.title ?? part?.title ?? "Reading guidance"}</h2>
+          <h2>{quest?.title ?? part?.title ?? t.readingGuidance}</h2>
           <dl>
-            <dt>Objective</dt>
+            <dt>{t.objective}</dt>
             <dd>{quest?.objective ?? part?.objective}</dd>
             {quest ? (
               <>
-                <dt>Where to read</dt>
+                <dt>{t.whereRead}</dt>
                 <dd>
                   {quest.read.length ? (
                     <ul>
@@ -139,17 +152,17 @@ export function ReadingWorkspace({
                       ))}
                     </ul>
                   ) : (
-                    "No specific location provided."
+                    t.noLocation
                   )}
                 </dd>
-                <dt>Focus question</dt>
+                <dt>{t.focusQuestion}</dt>
                 <dd>{quest.focus_question}</dd>
-                <dt>Completion condition</dt>
+                <dt>{t.completion}</dt>
                 <dd>{quest.completion_condition}</dd>
               </>
             ) : part?.checkpoint?.question ? (
               <>
-                <dt>Checkpoint question</dt>
+                <dt>{t.checkpoint}</dt>
                 <dd>{part.checkpoint.question}</dd>
               </>
             ) : null}
@@ -161,7 +174,7 @@ export function ReadingWorkspace({
               disabled={!previousQuest}
               onClick={() => previousQuest && setSelection(previousQuest)}
             >
-              Previous Quest
+              {t.previousQuest}
             </button>
 
             <button
@@ -170,11 +183,12 @@ export function ReadingWorkspace({
               disabled={!nextQuest}
               onClick={() => nextQuest && setSelection(nextQuest)}
             >
-              Next Quest
+              {t.nextQuest}
             </button>
           </div>
         </section>
         <WorkingNotes
+          language={language}
           state={workspaceState}
           onChange={onWorkspaceChange}
           part={part}
@@ -183,11 +197,11 @@ export function ReadingWorkspace({
       </div>
       <section className="panel parking-lot" aria-labelledby="parking-title">
         <div className="panel-heading">
-          <h2 id="parking-title">Parking lot</h2>
+          <h2 id="parking-title">{t.parking}</h2>
           <button
             type="button"
             className="quiet fold-toggle"
-            aria-label={`${parkingCollapsed ? "Expand" : "Collapse"} Parking lot`}
+            aria-label={parkingCollapsed ? t.expandParking : t.collapseParking}
             aria-expanded={!parkingCollapsed}
             aria-controls="parking-content"
             onClick={() => setParkingCollapsed(!parkingCollapsed)}
@@ -196,11 +210,8 @@ export function ReadingWorkspace({
           </button>
         </div>
         <div id="parking-content" hidden={parkingCollapsed}>
-          <p className="muted">
-            Record questions or concepts without leaving the current reading
-            thread.
-          </p>
-          <p className="muted small">Saved locally with this paper.</p>
+          <p className="muted">{t.parkingHelp}</p>
+          <p className="muted small">{t.parkingSaved}</p>
           <form
             onSubmit={(event) => {
               event.preventDefault();
@@ -213,14 +224,14 @@ export function ReadingWorkspace({
               setParkingDraft("");
             }}
           >
-            <label htmlFor="parking-draft">Question or concept</label>
+            <label htmlFor="parking-draft">{t.questionConcept}</label>
             <input
               id="parking-draft"
               value={parkingDraft}
               onChange={(event) => setParkingDraft(event.target.value)}
             />
             <button type="submit" disabled={!parkingDraft.trim()}>
-              Add
+              {t.add}
             </button>
           </form>
           <ul className="parking-items">
@@ -230,14 +241,16 @@ export function ReadingWorkspace({
                 <button
                   type="button"
                   className="quiet"
-                  aria-label={`Remove ${item.text}`}
+                  aria-label={formatMessage(language, "removeItem", {
+                    text: item.text,
+                  })}
                   onClick={() =>
                     onParkingChange(
                       parkingItems.filter((entry) => entry.id !== item.id),
                     )
                   }
                 >
-                  Remove
+                  {t.remove}
                 </button>
               </li>
             ))}

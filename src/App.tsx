@@ -5,6 +5,8 @@ import {
   exportPaperAsMarkdown,
   libraryFilename,
   paperMarkdownFilename,
+  exportSessionAsJson,
+  sessionJsonFilename,
 } from "./exports";
 import {
   parseBackup,
@@ -14,9 +16,16 @@ import {
   type Backup,
 } from "./backup";
 import { RestoreDialog } from "./RestoreDialog";
+import { SessionList } from "./SessionList";
+import {
+  translations,
+  en,
+  localizeFeedback,
+  formatMessage,
+} from "./translations";
 import { emptySurvey, type Session } from "./types";
 import { load, save } from "./storage";
-import { filledPrompt } from "./prompts";
+import { filledPrompt, type PromptLanguage } from "./prompts";
 import { parsePlan } from "./parser";
 import { SurveyForm } from "./SurveyForm";
 import { ReadingWorkspace } from "./ReadingWorkspace";
@@ -25,21 +34,24 @@ import { isLegacyReadingPlan } from "./readingPlan";
 
 function SessionEditor({
   session,
+  language,
   onChange,
 }: {
   session: Session;
+  language: PromptLanguage;
   onChange: (s: Session) => void;
 }) {
+  const t = translations[language];
   const [response, setResponse] = useState("");
   const [message, setMessage] = useState("");
-  const [error, setError] = useState("");
+  const [error, setError] = useState<Error | string>("");
 
   const ready = [
     session.survey.reading_purpose,
     session.survey.background,
     session.survey.primary_reading_goal,
   ].every((s) => s.trim());
-  const prompt = filledPrompt(session);
+  const prompt = filledPrompt(session, language);
   function importResponse() {
     try {
       const plan = parsePlan(response);
@@ -53,7 +65,7 @@ function SessionEditor({
       setError("");
       setMessage("");
     } catch (e) {
-      setError(e instanceof Error ? e.message : "Import failed.");
+      setError(e instanceof Error ? e : en.importFailed);
       setMessage("");
     }
   }
@@ -61,10 +73,10 @@ function SessionEditor({
     <>
       <header>
         <div className="session-heading">
-          <div className="eyebrow">Reading session</div>
+          <div className="eyebrow">{t.readingSession}</div>
         </div>
         <label className="title-label">
-          Paper title
+          {t.paperTitle}
           <input
             className="paper-title"
             value={session.title}
@@ -75,30 +87,23 @@ function SessionEditor({
       {session.state === "setup" ? (
         <div className="columns">
           <SurveyForm
+            language={language}
             survey={session.survey}
             onChange={(survey) => onChange({ ...session, survey })}
           />
           <section className="panel">
-            <div className="eyebrow">02 / Bring to ChatGPT</div>
-            <h2>Your prompt & reading plan</h2>
-            <p className="muted">
-              Copy the prompt, upload your paper in ChatGPT, then paste its
-              entire response below. Only the marked JSON import block is saved.
-            </p>
-            {!ready && (
-              <p className="hint">
-                Fill in your reading purpose, background, and primary reading
-                goal to prepare a prompt.
-              </p>
-            )}
+            <div className="eyebrow">{t.bring}</div>
+            <h2>{t.promptTitle}</h2>
+            <p className="muted">{t.promptHelp}</p>
+            {!ready && <p className="hint">{t.promptReady}</p>}
             <label>
-              Filled predefined prompt
+              {t.filledPrompt}
               <textarea
                 className="prompt"
                 rows={12}
                 readOnly
                 value={ready ? prompt : ""}
-                placeholder="Your completed prompt will appear here."
+                placeholder={t.promptPlaceholder}
               />
             </label>
             <button
@@ -106,50 +111,43 @@ function SessionEditor({
               onClick={async () => {
                 try {
                   await navigator.clipboard.writeText(prompt);
-                  setMessage(
-                    "Prompt copied. Paste it into ChatGPT with your paper.",
-                  );
+                  setMessage(en.copied);
                   setError("");
                 } catch {
-                  setError(
-                    "Clipboard unavailable. Select the prompt text and copy it manually.",
-                  );
+                  setError(en.clipboardFailed);
                 }
               }}
             >
-              Copy prompt
+              {t.copyPrompt}
             </button>
             <label className="import-label">
-              Paste ChatGPT’s entire response
+              {t.pasteResponse}
               <textarea
                 rows={7}
                 value={response}
                 onChange={(e) => setResponse(e.target.value)}
-                placeholder="Paste the explanation and the PAPER_READER_IMPORT_START / PAPER_READER_IMPORT_END block here."
+                placeholder={t.importPlaceholder}
               />
             </label>
-            <p className="muted small">
-              A valid import saves the initial reading plan and completes setup.
-              Reimporting replaces this plan. An invalid response leaves your
-              session unchanged.
-            </p>
+            <p className="muted small">{t.importHelp}</p>
             <button disabled={!response.trim()} onClick={importResponse}>
-              Import reading plan
+              {t.importPlan}
             </button>
             {error && (
               <p role="alert" className="error">
-                {error}
+                {localizeFeedback(error, language)}
               </p>
             )}
             {message && (
               <p role="status" className="success">
-                {message}
+                {localizeFeedback(message, language)}
               </p>
             )}
           </section>
         </div>
       ) : session.readingPlan && !isLegacyReadingPlan(session.readingPlan) ? (
         <ReadingWorkspace
+          language={language}
           parkingItems={session.parkingItems ?? []}
           onParkingChange={(parkingItems) =>
             onChange({ ...session, parkingItems })
@@ -165,26 +163,44 @@ function SessionEditor({
         />
       ) : (
         <section className="panel">
-          <h2>Reading workspace</h2>
-          <p className="muted">
-            This session has no plan in the current Parts-and-Quests format. Use
-            the Data menu above to redo reading setup and import a current plan.
-            Any previously saved data is retained until you replace the plan.
-          </p>
+          <h2>{t.readingWorkspace}</h2>
+          <p className="muted">{t.legacyPlan}</p>
         </section>
       )}
     </>
   );
 }
 export default function App() {
+  const [language, setLanguage] = useState<PromptLanguage>(() => {
+    try {
+      return localStorage.getItem("paper-reading-companion:language") ===
+        "zh-CN"
+        ? "zh-CN"
+        : "en";
+    } catch {
+      return "en";
+    }
+  });
+  const t = translations[language];
+  useEffect(() => {
+    document.documentElement.lang = language;
+    document.title = translations[language].appTitle;
+  }, [language]);
+  function selectLanguage(next: PromptLanguage) {
+    setLanguage(next);
+    try {
+      localStorage.setItem("paper-reading-companion:language", next);
+    } catch {
+      /* The selection still works for this visit. */
+    }
+  }
   const [initial] = useState(() => {
     try {
       return { state: load(), error: "" };
     } catch (e) {
       return {
         state: { sessions: [] as Session[], activeId: null as string | null },
-        error:
-          e instanceof Error ? e.message : "Unable to access local storage.",
+        error: e instanceof Error ? e : en.storageUnavailable,
       };
     }
   });
@@ -194,8 +210,11 @@ export default function App() {
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const fileInput = useRef<HTMLInputElement>(null);
   const [pendingBackup, setPendingBackup] = useState<Backup | null>(null);
-  const [dataMessage, setDataMessage] = useState("");
-  const [dataError, setDataError] = useState("");
+  const [dataMessage, setDataMessage] = useState<Pick<
+    ReturnType<typeof planRestore>,
+    "summaryKey" | "summaryValues"
+  > | null>(null);
+  const [dataError, setDataError] = useState<Error | string>("");
   const [storageReady, setStorageReady] = useState(!initial.error);
   const [restoreGeneration, setRestoreGeneration] = useState(0);
   const persistedRestore = useRef<typeof state | null>(null);
@@ -209,9 +228,7 @@ export default function App() {
       save(state);
       setStorageError("");
     } catch {
-      setStorageError(
-        "Changes could not be saved locally. Keep this tab open; browser storage may be full or unavailable.",
-      );
+      setStorageError(en.saveFailed);
     }
   }, [state, storageReady]);
   const active =
@@ -228,18 +245,18 @@ export default function App() {
   }
   return (
     <div className={`app ${sidebarCollapsed ? "sidebar-collapsed" : ""}`}>
-      <aside aria-label="App controls">
+      <aside aria-label={t.appControls}>
         <div className="sidebar-toggle-row">
           <div className="brand" hidden={sidebarCollapsed}>
-            Paper Reading
+            {t.brandReading}
             <br />
-            <span>Companion</span>
+            <span>{t.brandCompanion}</span>
           </div>
           <button
             type="button"
             className="quiet fold-toggle"
-            aria-label={`${sidebarCollapsed ? "Expand" : "Collapse"} app controls`}
-            title={`${sidebarCollapsed ? "Expand" : "Collapse"} app controls`}
+            aria-label={sidebarCollapsed ? t.expandApp : t.collapseApp}
+            title={sidebarCollapsed ? t.expandApp : t.collapseApp}
             aria-expanded={!sidebarCollapsed}
             aria-controls="app-controls-content"
             onClick={() => setSidebarCollapsed(!sidebarCollapsed)}
@@ -248,7 +265,7 @@ export default function App() {
           </button>
         </div>
         <div id="app-controls-content" hidden={sidebarCollapsed}>
-          <p className="muted">One paper. A clearer path.</p>
+          <p className="muted">{t.tagline}</p>
           <form
             onSubmit={(e) => {
               e.preventDefault();
@@ -257,7 +274,7 @@ export default function App() {
                 id: crypto.randomUUID(),
                 updatedAt: new Date().toISOString(),
                 title: title.trim(),
-                survey: emptySurvey(),
+                survey: emptySurvey(t.basicUnderstanding),
                 state: "setup",
                 stage: "initial",
                 quests: [],
@@ -273,41 +290,91 @@ export default function App() {
             }}
           >
             <label>
-              Start a reading session
+              {t.startSession}
               <input
-                placeholder="Paper title"
+                placeholder={t.paperTitle}
                 value={title}
                 onChange={(e) => setTitle(e.target.value)}
               />
             </label>
             <button disabled={!title.trim() || !storageReady}>
-              + New session
+              {t.newSession}
             </button>
           </form>
-          <nav aria-label="Reading sessions">
-            {state.sessions.map((s) => (
-              <button
-                key={s.id}
-                className={`session-button ${active?.id === s.id ? "selected" : ""}`}
-                onClick={() => setState({ ...state, activeId: s.id })}
-              >
-                {s.title || "Untitled paper"}
-                <small>{s.state === "setup" ? "Setup" : "Reading"}</small>
-              </button>
-            ))}
-          </nav>
+          <SessionList
+            key={String(sidebarCollapsed)}
+            sessions={state.sessions}
+            activeId={active?.id}
+            language={language}
+            onSelect={(id) =>
+              setState((current) => ({ ...current, activeId: id }))
+            }
+            onRedo={(session) => changeSession({ ...session, state: "setup" })}
+            onExport={(session) => {
+              try {
+                downloadTextFile(
+                  exportSessionAsJson(session),
+                  sessionJsonFilename(session.title),
+                  "application/json",
+                );
+              } catch {
+                setDataError(en.exportFailed);
+              }
+            }}
+            onDelete={(id) => {
+              if (!storageReady) throw new Error("Storage unavailable");
+              const sessions = state.sessions.filter(
+                (session) => session.id !== id,
+              );
+              const next = {
+                sessions,
+                activeId:
+                  active?.id === id
+                    ? (sessions[0]?.id ?? null)
+                    : state.activeId,
+              };
+              save(next);
+              persistedRestore.current = next;
+              setState(next);
+              setStorageError("");
+            }}
+          />
           <p className="local-note">
-            Local browser storage · No API
+            {t.localStorage}
             <br />
-            Use the same browser and local address to return to your sessions.
-            Clearing browser data removes them.
+            {t.storageHelp}
           </p>
         </div>
       </aside>
       <main>
         <div className="topline">
-          <span>YOUR PERSONAL READING WORKSPACE</span>
+          <span>{t.workspaceTitle}</span>
           <div className="topline-actions">
+            <div
+              className="language-switch"
+              role="group"
+              aria-label={t.languageLabel}
+            >
+              <button
+                type="button"
+                lang="zh-CN"
+                aria-label={t.chineseLabel}
+                aria-pressed={language === "zh-CN"}
+                onClick={() => selectLanguage("zh-CN")}
+              >
+                {t.chineseShort}
+              </button>
+              <span aria-hidden="true">/</span>
+              <button
+                type="button"
+                lang="en"
+                aria-label={t.englishLabel}
+                aria-pressed={language === "en"}
+                onClick={() => selectLanguage("en")}
+              >
+                {t.englishShort}
+              </button>
+            </div>
             <details
               className="plan-options export-options"
               onBlur={(event) => {
@@ -322,7 +389,7 @@ export default function App() {
               }}
             >
               <summary>
-                <span aria-hidden="true">▤</span> Data
+                <span aria-hidden="true">▤</span> {t.data}
               </summary>
               <div className="plan-options-panel">
                 <button
@@ -337,7 +404,7 @@ export default function App() {
                       );
                   }}
                 >
-                  Export paper notes (.md)
+                  {t.exportMarkdown}
                 </button>
                 <button
                   type="button"
@@ -356,13 +423,13 @@ export default function App() {
                     );
                   }}
                 >
-                  Export library backup (.json)
+                  {t.exportLibrary}
                 </button>
                 <button
                   type="button"
                   onClick={() => fileInput.current?.click()}
                 >
-                  Import library (.json)
+                  {t.importLibraryJson}
                 </button>
                 <button
                   type="button"
@@ -371,13 +438,11 @@ export default function App() {
                     if (active) changeSession({ ...active, state: "setup" });
                   }}
                 >
-                  Redo reading setup
+                  {t.redoSetup}
                 </button>
               </div>
             </details>
-            <span>
-              {storageError ? "Storage needs attention" : "Saved locally"}
-            </span>
+            <span>{storageError ? t.storageAttention : t.savedLocally}</span>
           </div>
         </div>
         <input
@@ -390,32 +455,37 @@ export default function App() {
             event.target.value = "";
             if (!file) return;
             setDataError("");
-            setDataMessage("");
+            setDataMessage(null);
             setPendingBackup(null);
             try {
               setPendingBackup(parseBackup(await file.text()));
             } catch (error) {
               setDataError(
-                error instanceof Error
-                  ? error.message
-                  : "Could not read the backup file.",
+                error instanceof Error ? error : en.backupReadFailed,
               );
             }
           }}
         />
         {dataError && (
           <p role="alert" className="error">
-            {dataError}
+            {localizeFeedback(dataError, language)}
           </p>
         )}
         {dataMessage && (
           <p role="status" className="success">
-            {dataMessage}
+            {formatMessage(language, "importComplete", {
+              summary: formatMessage(
+                language,
+                dataMessage.summaryKey,
+                dataMessage.summaryValues,
+              ),
+            })}
           </p>
         )}
         {pendingBackup && (
           <RestoreDialog
-            error={dataError}
+            language={language}
+            error={localizeFeedback(dataError, language)}
             backup={pendingBackup}
             current={state}
             onCancel={() => setPendingBackup(null)}
@@ -430,46 +500,43 @@ export default function App() {
                 setRestoreGeneration((value) => value + 1);
                 setPendingBackup(null);
                 setDataError("");
-                setDataMessage(`Import complete — ${result.summary}`);
+                setDataMessage({
+                  summaryKey: result.summaryKey,
+                  summaryValues: result.summaryValues,
+                });
               } catch {
-                setDataError(
-                  "Import could not be saved. Your previous library is unchanged. Storage may be full or unavailable.",
-                );
+                setDataError(en.restoreFailed);
               }
             }}
           />
         )}
         {storageError && (
           <p role="alert" className="error">
-            {storageError}
+            {localizeFeedback(storageError, language)}
           </p>
         )}
         {active ? (
           <SessionEditor
             key={`${active.id}:${active.state}:${restoreGeneration}`}
             session={active}
+            language={language}
             onChange={changeSession}
           />
         ) : (
           <section className="welcome">
-            <div className="eyebrow">From paper to understanding</div>
+            <div className="eyebrow">{t.welcomeEyebrow}</div>
             <h1>
-              Make your next paper
-              <br />a little more approachable.
+              {t.welcomeFirst}
+              <br />
+              {t.welcomeSecond}
             </h1>
-            <p>
-              Create a session, describe what you want to learn, and bring a
-              tailored prompt to ChatGPT. Import its reading plan to save it
-              locally.
-            </p>
+            <p>{t.welcomeHelp}</p>
             <ol>
-              <li>Prepare a short reading survey</li>
-              <li>Copy a prompt and import a plan</li>
-              <li>
-                Keep your imported plan saved for the future reading workspace
-              </li>
+              <li>{t.welcomeSurvey}</li>
+              <li>{t.welcomeImport}</li>
+              <li>{t.welcomeRead}</li>
             </ol>
-            <p className="muted">Start with a paper title in the sidebar.</p>
+            <p className="muted">{t.welcomeStart}</p>
           </section>
         )}
       </main>

@@ -21,9 +21,9 @@ A personal, local browser application for organizing paper reading around manual
 ## Source map
 
 - `src/main.tsx`, `index.html`: entry points.
-- `src/App.tsx`: session list, setup/reading transition, prompt/import UI, page options, persistence wiring.
+- `src/App.tsx`: setup/reading transition, prompt/import UI, page options, persistence wiring. `src/SessionList.tsx`: per-session menu and deletion confirmation; `src/translations.ts`: complete English/Chinese UI dictionary, interpolation helper, and structured validation errors.
 - `src/SurveyForm.tsx`: survey fields; `src/types.ts`: survey/session types and defaults.
-- `src/prompts/initialReadingPlan.ts`: editable prompt wording and its embedded expected JSON example; exports `initialReadingPlanPrompt` and a filling helper.
+- `src/prompts/initialReadingPlan.en.ts` and `initialReadingPlan.zhCN.ts`: explicit language templates with identical placeholders and English JSON keys. `initialReadingPlan.ts` retains English compatibility exports. The 中 / EN control selects the prompt language without translating stored survey values.
 - `src/prompts.ts`: actual UI prompt-filling path. Keep its import aligned with the template export.
 - `src/parser.ts`: marker/fence handling and JSON parsing; `src/readingPlan.ts`: current schema validation plus legacy saved-plan recognition.
 - `src/ReadingWorkspace.tsx`: Part/Quest selection, reading guidance and persisted Parking lot; `src/WorkingNotes.tsx` owns the persisted continuous-section note UI.
@@ -38,15 +38,16 @@ A personal, local browser application for organizing paper reading around manual
 - Session `state` is `setup` or `reading`. Only a valid plan import or validated backup restore introduces reading state. Errors must not mutate the saved plan or session state.
 - Keep survey, prompt, import schema, and tests consistent when changing the contract. Preserve saved sessions through explicit compatibility handling rather than deleting incompatible data.
 - `reading_purpose` is context; `primary_reading_goal` (default `Basic understanding`) organizes the plan. Do not conflate them.
+- All application-authored UI text, including accessibility labels, errors, and confirmations, must use `translations.ts` in both languages. Pass language to components; do not translate user/GPT content, stored survey answers, Markdown, or schema keys. New sessions use the selected language's goal default (`Basic understanding` / `基本理解`); depth option values stay canonical English. `UiError` keeps English Error.message compatibility while the UI formats its key/parameters at render time. Document title/lang and displayed dates follow the selected language. Prompt templates stay separate and predefined.
 - Accept marker-wrapped responses, raw JSON, and generic/JSON Markdown fences. Without markers, reject surrounding prose; never fuzzy-extract or repair JSON.
 - Imported plans are guidance only: no completion controls or counters. Retain saved completion fields for compatibility; the existing import flow resets them on replacement. Parking lot items persist on the session for backup/restore. Session updatedAt advances only on content changes. Working-section Markdown and draft persist in session.workspaceState, separate from savedSections. Render & continue appends raw Markdown with a blank line; Save section includes pending draft and clears the working section. Section edits retain ID/createdAt/context and set updatedAt; deletion requires confirmation. Legacy savedNotes are preserved and used as initial saved sections only when workspaceState is absent.
 - Render imported plan text as text. Notes use the shared MarkdownNote renderer (react-markdown, remark-math, rehype-katex); raw HTML is disabled and KaTeX trust is false. Never rewrite Markdown/LaTeX source or store rendered HTML. Retain accessible labels, keyboard controls, and disclosure states.
 - Backup version is centralized in `backup.ts`. Validate the entire backup before confirmation; restore storage atomically before publishing React state. Preserve IDs/raw text/timestamps; never silently duplicate IDs. Merge conflicts with equal/missing timestamps must be disclosed. Replace requires explicit acknowledgement.
-- Preserve the existing restrained green/neutral style. Export, import/restore, and redo setup belong in the unified upper-right Data menu, not the normal reading flow.
+- Preserve the existing restrained green/neutral style. Global library controls remain in the upper-right Data menu. Each sidebar card has a compact session-only menu for redo, JSON export, and confirmed deletion. Single-session JSON uses the same backup envelope with one paper; preserve all raw fields. Deletion writes storage before publishing state and must leave the session unchanged on storage failure.
 
 ## Commands and portability
 
-Use Node.js 22.6+ (Node 24 was used in development). `pnpm-lock.yaml` is the existing lockfile; prefer pnpm on a fresh checkout (`pnpm install --frozen-lockfile`). Do not introduce a competing lockfile without a reason. README also documents npm installation; scripts work with either runner once dependencies are installed.
+Use Node.js 22.6+ (Node 24 was used in development). `pnpm-lock.yaml` is the existing lockfile; use pnpm on a fresh checkout (`pnpm install --frozen-lockfile`), as documented in README. Do not introduce a competing lockfile without a reason. Scripts can also run through npm once dependencies are installed.
 
 | Purpose              | Command                                                       |
 | -------------------- | ------------------------------------------------------------- |
@@ -67,6 +68,8 @@ node node_modules/typescript/bin/tsc -b
 node node_modules/vite/bin/vite.js build
 node --experimental-strip-types --test src/*.test.ts
 ```
+
+After cloning or pulling changes to package.json/pnpm-lock.yaml, run `pnpm install --frozen-lockfile` on that computer before launching. Git does not install dependencies; do not copy node_modules between machines. The launcher checks for missing declared package manifests and explains how to install them, but does not verify installed versions or automatically download packages.
 
 Dev origin is `http://127.0.0.1:5173/`; strict port prevents silently switching storage origins. The Windows launcher opens the browser and keeps a visible terminal running. Stop only servers you started, and say whether you left one running. Do not kill an unidentified process occupying the port.
 

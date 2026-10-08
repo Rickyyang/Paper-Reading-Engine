@@ -1,45 +1,28 @@
+import { translations } from "./translations";
+import type { PromptLanguage } from "./prompts";
 import type { Survey } from "./types";
 export function SurveyForm({
+  language,
   survey,
   onChange,
 }: {
+  language: PromptLanguage;
   survey: Survey;
   onChange: (value: Survey) => void;
 }) {
+  const t = translations[language];
   const fields = [
-    [
-      "reading_purpose",
-      "Reading purpose",
-      "Why you are reading: current research, literature review, learning a method, reproduction…",
-    ],
-    [
-      "primary_reading_goal",
-      "Primary reading goal",
-      "The most important thing you want to understand from this paper…",
-    ],
-    [
-      "background",
-      "What is your current background?",
-      "Topics and methods you already know…",
-    ],
-    [
-      "difficulties",
-      "Any known difficulties?",
-      "Unfamiliar notation, missing prerequisites…",
-    ],
-    [
-      "effort",
-      "How much reading effort can you spend?",
-      "For example, 30 minutes or two focused sessions…",
-    ],
+    ["reading_purpose", t.purpose, t.purposePlaceholder],
+    ["primary_reading_goal", t.primaryGoal, t.goalPlaceholder],
+    ["background", t.background, t.backgroundPlaceholder],
+    ["difficulties", t.difficulties, t.difficultiesPlaceholder],
+    ["effort", t.effort, t.effortPlaceholder],
   ] as const;
   return (
     <section className="panel">
-      <div className="eyebrow">01 / Prepare</div>
-      <h2>Your reading survey</h2>
-      <p className="muted">
-        A little context makes the predefined prompt more useful.
-      </p>
+      <div className="eyebrow">{t.prepare}</div>
+      <h2>{t.surveyTitle}</h2>
+      <p className="muted">{t.surveyHelp}</p>
       {fields.map(([key, label, placeholder]) => (
         <label key={key}>
           {label}
@@ -52,16 +35,18 @@ export function SurveyForm({
         </label>
       ))}
       <label>
-        Desired reading depth
+        {t.depth}
         <select
           value={survey.depth}
           onChange={(e) =>
             onChange({ ...survey, depth: e.target.value as Survey["depth"] })
           }
         >
-          <option>Overview</option>
-          <option>Working understanding</option>
-          <option>Deep study</option>
+          <option value="Overview">{t.overview}</option>
+          <option value="Working understanding">
+            {t.workingUnderstanding}
+          </option>
+          <option value="Deep study">{t.deepStudy}</option>
         </select>
       </label>
     </section>

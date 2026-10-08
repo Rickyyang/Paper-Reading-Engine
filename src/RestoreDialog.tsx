@@ -1,20 +1,25 @@
+import { translations, formatMessage } from "./translations";
+import type { PromptLanguage } from "./prompts";
 import { useEffect, useRef, useState } from "react";
 import { planRestore, type Backup } from "./backup";
 import type { State } from "./storage";
 
 export function RestoreDialog({
+  language,
   backup,
   current,
   onCancel,
   onConfirm,
   error,
 }: {
+  language: PromptLanguage;
   backup: Backup;
   current: State;
   onCancel: () => void;
   onConfirm: (mode: "merge" | "replace") => void;
   error: string;
 }) {
+  const t = translations[language];
   const dialog = useRef<HTMLDialogElement>(null);
   const [mode, setMode] = useState<"merge" | "replace">("merge");
   const [replaceConfirmed, setReplaceConfirmed] = useState(false);
@@ -31,18 +36,19 @@ export function RestoreDialog({
       aria-labelledby="restore-title"
       onCancel={onCancel}
     >
-      <h2 id="restore-title">Import library</h2>
+      <h2 id="restore-title">{t.importLibrary}</h2>
       {error && (
         <p role="alert" className="error">
           {error}
         </p>
       )}
       <p>
-        {backup.papers.length} papers in this backup. Nothing changes until you
-        confirm.
+        {formatMessage(language, "backupCount", {
+          count: backup.papers.length,
+        })}
       </p>
       <label>
-        Import mode
+        {t.importMode}
         <select
           value={mode}
           onChange={(event) => {
@@ -50,17 +56,17 @@ export function RestoreDialog({
             setReplaceConfirmed(false);
           }}
         >
-          <option value="merge">Merge with current library</option>
-          <option value="replace">Replace current library</option>
+          <option value="merge">{t.mergeLibrary}</option>
+          <option value="replace">{t.replaceLibrary}</option>
         </select>
       </label>
-      <p>{result.summary}</p>
+      <p>{formatMessage(language, result.summaryKey, result.summaryValues)}</p>
       {result.conflicts.length > 0 && (
         <div className="hint">
           <p>
-            {result.conflicts.length} matching papers differ but have equal or
-            missing update timestamps. Confirming will use the imported
-            versions:
+            {formatMessage(language, "conflictCount", {
+              count: result.conflicts.length,
+            })}
           </p>
           <ul>
             {result.conflicts.map((title, index) => (
@@ -76,7 +82,7 @@ export function RestoreDialog({
             checked={replaceConfirmed}
             onChange={(event) => setReplaceConfirmed(event.target.checked)}
           />{" "}
-          I understand that all current local library data will be replaced.
+          {t.replaceWarning}
         </label>
       )}
       <div className="note-actions">
@@ -85,10 +91,10 @@ export function RestoreDialog({
           disabled={mode === "replace" && !replaceConfirmed}
           onClick={() => onConfirm(mode)}
         >
-          {mode === "replace" ? "Confirm replace" : "Confirm merge"}
+          {mode === "replace" ? t.confirmReplace : t.confirmMerge}
         </button>
         <button type="button" className="quiet" onClick={onCancel}>
-          Cancel
+          {t.cancel}
         </button>
       </div>
     </dialog>

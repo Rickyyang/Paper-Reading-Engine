@@ -104,7 +104,11 @@ export function exportPaperAsMarkdown(
   return blocks.join("\n\n") + "\n";
 }
 
-export function paperMarkdownFilename(title: string) {
+export function exportSessionAsJson(session: Session) {
+  return exportLibraryAsJson([session], session.id);
+}
+
+function paperFilenameBase(title: string) {
   let name = title
     .replace(/[<>:"/\\|?*\u0000-\u001f\u007f]/g, "")
     .trim()
@@ -114,7 +118,15 @@ export function paperMarkdownFilename(title: string) {
   if (!name) name = "Untitled-paper";
   if (/^(con|prn|aux|nul|com[1-9]|lpt[1-9])(?:\.|$)/i.test(name))
     name = `Paper-${name}`;
-  return `${name}.md`;
+  return name;
+}
+
+export function paperMarkdownFilename(title: string) {
+  return `${paperFilenameBase(title)}.md`;
+}
+
+export function sessionJsonFilename(title: string) {
+  return `${paperFilenameBase(title)}-session.json`;
 }
 
 export function libraryFilename(now = new Date()) {

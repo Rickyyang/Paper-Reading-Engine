@@ -15,7 +15,17 @@ if errorlevel 1 (
 )
 
 if not exist "node_modules\vite\bin\vite.js" (
-  echo Dependencies are missing. Run npm install in this folder first.
+  echo Dependencies are missing. Run pnpm install --frozen-lockfile in this folder first.
+  pause
+  exit /b 1
+)
+
+rem Git pulls do not install newly declared dependencies on this computer.
+"%PAPER_NODE%" -e "const fs=require('node:fs'); const p=require('./package.json'); const missing=Object.keys({...p.dependencies,...p.devDependencies}).filter(name=>!fs.existsSync('node_modules/'+name+'/package.json')); if(missing.length){console.error('Missing dependencies: '+missing.join(', '));process.exitCode=1}"
+if errorlevel 1 (
+  echo.
+  echo After pulling updates, run pnpm install --frozen-lockfile in this folder.
+  echo Then run this launcher again.
   pause
   exit /b 1
 )
