@@ -1,10 +1,13 @@
-# Paper Reading Companion
+# Paper Reading Companion 论文阅读助手
 
 A local React + TypeScript + Vite app for organizing academic paper reading around manual ChatGPT interaction. It prepares predefined prompts, imports reading plans, and keeps Markdown notes and questions together. No backend, accounts, cloud storage, or AI/OpenAI API integration.
 
-## Install and open
+一个基于 React + TypeScript + Vite 的本地网页应用，用于配合手动使用 ChatGPT 来组织学术论文阅读。它可以准备预设提示词、导入阅读计划，并将 Markdown 笔记和问题集中管理。无需后端、账户、云存储，也不集成 AI/OpenAI API。
+
+## Install and open 安装与启动
 
 Use Node.js 22.6 or newer and pnpm. From the project folder, on every new computer:
+请使用 Node.js 22.6 或更高版本以及 pnpm。在每台新电脑上，进入项目文件夹后运行：
 
 ```sh
 pnpm install --frozen-lockfile
@@ -16,6 +19,10 @@ Open [http://127.0.0.1:5173/](http://127.0.0.1:5173/). This address points to yo
 On Windows, after installing dependencies, double-click **Start Paper Reading Companion.cmd** instead of running the dev command. It opens your default browser and keeps a visible terminal running. Minimize that window while reading; press **Ctrl+C** or close it to stop the server. Closing only the browser does not stop the server.
 
 The launcher uses Node on PATH, with a fallback to an existing Codex Node runtime. That fallback is not guaranteed on another computer; a normal Node installation is the portable option.
+
+打开 http://127.0.0.1:5173/。这个地址指向你自己的电脑。Vite 负责提供应用文件，阅读数据则保存在浏览器中。
+在 Windows 上，安装完依赖后，可以直接双击 Start Paper Reading Companion.cmd，无需运行开发命令。它会打开默认浏览器，并保留一个可见的终端窗口。阅读时可以将该窗口最小化；按 Ctrl+C 或关闭终端窗口即可停止服务器。仅关闭浏览器不会停止服务器。
+启动脚本会优先使用 PATH 中的 Node，并在必要时回退到已有的 Codex Node 运行环境。这个后备方式不保证在其他电脑上可用，因此安装标准 Node 是更通用、可迁移的方案。
 
 ## After pulling updates or changing computers
 
@@ -153,6 +160,8 @@ Use the top-right **中 / EN** control to switch the entire application interfac
 Fixed UI messages live in `src/translations.ts`. Add both language versions there rather than placing interface text in components. Validation errors retain message keys and parameters so existing feedback can switch languages without changing the JSON schema or its English field names.
 
 Edit the explicit templates in `src/prompts/initialReadingPlan.en.ts` and `src/prompts/initialReadingPlan.zhCN.ts`; `src/prompts.ts` selects and fills them. The original `initialReadingPlan.ts` retains English compatibility exports. Both templates use `reading_purpose`, `background`, `primary_reading_goal`, `known_difficulties`, `reading_depth`, and `reading_effort` in double braces. Both request the same English JSON keys and fixed IDs, with natural-language values in the selected language. Substitution is deterministic and local.
+
+Both prompts request `$...$` inline math and `$$...$$` display math in the readable plan and JSON values. JSON must escape LaTeX backslashes (`\\`) and line breaks (`\n`). Imported plans use the same Markdown/KaTeX renderer as notes, including titles, objectives, reading locations, questions, checkpoints, and the expandable **Start here** section. Long equations scroll horizontally. The original LaTeX strings stay in storage; rendered HTML is never saved.
 
 Schema validation is in `src/readingPlan.ts`, extraction in `src/parser.ts`, persistence in `src/storage.ts`, backup/restore in `src/backup.ts`, and exports in `src/exports.ts`.
 

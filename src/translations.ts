@@ -1,6 +1,10 @@
 import type { PromptLanguage } from "./prompts.ts";
 
 export const en = {
+  mainObjective: "Main objective",
+  routeSummary: "Suggested reading route",
+  startHere: "Start here",
+  goToQuest: "Go to {id}",
   workspaceTitle: "YOUR PERSONAL READING WORKSPACE",
   data: "Data",
   savedLocally: "Saved locally",
@@ -236,6 +240,10 @@ export function localizeFeedback(
 export const translations: Record<PromptLanguage, typeof en> = {
   en,
   "zh-CN": {
+    mainObjective: "主要目标",
+    routeSummary: "建议阅读路径",
+    startHere: "从这里开始",
+    goToQuest: "前往 {id}",
     workspaceTitle: "你的个人论文阅读工作区",
     data: "数据",
     savedLocally: "已保存至本地",

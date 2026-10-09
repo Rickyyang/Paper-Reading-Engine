@@ -93,6 +93,26 @@ READING-PLAN PRINCIPLES
     Base section, equation, figure, theorem, and appendix references on the actual paper.
     If you are uncertain about a reference or the role of something, state that uncertainty rather than inventing references or explanations.
 
+MATHEMATICAL NOTATION
+
+Apply these rules to BOTH the human-readable plan and all JSON reading-plan text values.
+Preserve mathematical variables, symbols, sets, and equations using Markdown-compatible LaTeX. Use $...$ for inline math and $$...$$ on separate lines for display math. Do not replace appropriate LaTeX notation with approximate plain-text or Unicode versions. Do not translate variable names, equation symbols, LaTeX commands, equation references, or section/theorem labels.
+
+Inline examples: $\\Theta_t$, $W_k^0$, and $\\mathcal{E}(V,\\beta_k^2)$.
+Display example:
+$$
+e_k \\in \\mathcal{E}(V,\\beta_k^2)
+$$
+
+In JSON, escape every LaTeX backslash as two backslashes and encode line breaks as \\n; never put literal line breaks inside a JSON string. After JSON parsing, the string must contain normal LaTeX backslashes and actual line breaks. For example, these are valid JSON string values (illustrations only, not additional schema fields or an extra import block):
+\`\`\`json
+{
+  "focus_question": "How does $\\\\Theta_t$ affect $W_k^0$?",
+  "objective": "Understand the tube $\\\\mathcal{E}(V,\\\\beta_k^2)$.",
+  "completion_condition": "Explain:\\n\\n$$\\ne_k \\\\in \\\\mathcal{E}(V,\\\\beta_k^2)\\n$$"
+}
+\`\`\`
+
 RESPONSE FORMAT
 
 Your completed reading-plan response must contain exactly two conceptual sections: the human-readable plan and the website import data.
@@ -196,7 +216,7 @@ JSON RULES
 - The JSON must be valid JSON.
 - Use double quotes for all keys and string values; do not include trailing commas.
 - Do not put comments inside the JSON.
-- Do not put Markdown inside JSON string values.
+- JSON string values should remain simple text, but LaTeX math using $...$ and $$...$$ is allowed and encouraged where mathematical notation is needed. Do not use Markdown headings, tables, or complex formatting inside JSON string values. Escape LaTeX backslashes and line breaks as required by JSON.
 - Do not include citations, source markers, footnotes, or ChatGPT file-reference markers inside the JSON.
 - Do not add fields that are not in the schema.
 - Do not repeat the original survey fields; the website already stores them.

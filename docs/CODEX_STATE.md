@@ -1,12 +1,28 @@
 # Current development handoff
 
-Updated 2026-10-08. Read `docs/AGENTS.md` first; there is no root AGENTS.md. Code is authoritative. Inspect only files relevant to the next task.
+Updated 2026-10-09. Read `docs/AGENTS.md` first; there is no root AGENTS.md. Code is authoritative. Inspect only files relevant to the next task.
 
 ## Current goal and status
 
 Version 0 is a local, manually ChatGPT-assisted paper-reading companion. JSON library backup/restore and Markdown paper export share a **▤ Data** menu with Redo reading setup. Cross-computer startup repair is complete; no new feature is pending authorization.
 
-Current milestone: full English/Simplified Chinese UI localization is complete. Existing launcher, prompt, and sidebar-menu edits remain uncommitted. Browser reading data is separate: transfer it with JSON export/import.
+Current milestone: Overview is a selectable first item in Reading Plan navigation. The single center guidance panel switches between Overview, Part, and Quest content; no permanent overview panel remains. Browser reading data is separate: transfer it with JSON export/import.
+
+## Latest Overview navigation change
+
+- `ReadingWorkspace.tsx` uses null selection for Overview, outside the Part/Quest order. Initial selection still uses start_here with the existing first-Quest fallback; reopening never forces Overview. Selection remains temporary UI state.
+- Overview displays main objective, suggested reading route, and the existing expandable Start here content through the unchanged Markdown/KaTeX renderer. A localized Go to {id} button selects the recommended Part/Quest. Previous/Next controls remain in Part/Quest guidance only; their order/behavior is unchanged.
+- Existing Overview/main/start dictionary labels are reused; Chinese route label is 建议阅读路径. Notes, Parking Lot, schema, and stored plan content are unchanged.
+- Type check, production build, and all 27 tests pass. Browser checked one guidance panel, selected Overview highlight, absent Quest controls in Overview, Chinese labels, Go to Q1.1, removal of overview content on Quest selection, and reload retaining the original start-Quest behavior. Temporary test server on 5174 was stopped; normal server was left untouched. Existing bundle-size warning remains.
+
+## Latest math-formatting milestone
+
+- Both explicit initial-reading templates now require Markdown-compatible inline/display LaTeX in human-readable and JSON plan text, prohibit approximate plain-text/Unicode substitutions, preserve technical labels/commands, and demonstrate JSON backslash/newline escaping. The old blanket ban on Markdown in JSON is replaced with allowance for math while excluding headings/tables/complex formatting. Placeholder filling and schema are unchanged.
+- All displayed plan text in `ReadingWorkspace.tsx` uses the existing `MarkdownNote` pipeline. An optional inline mode uses span markup and noninteractive links for titles within headings/buttons; notes retain the same default block renderer and behavior. Raw HTML remains disabled and KaTeX trust false.
+- Main objective/route summary and start_here text appear when Overview is selected in Reading Plan, with an expandable Start here instruction/focus/completion section. Part/Quest titles and objectives, read entries, focus/completion, and Part checkpoints all render math. Skim remains omitted as before.
+- Plan-only overflow styling contains long equations without widening the workspace. Source JSON, storage envelope, importer, raw notes, exports, and UI language mechanism are unchanged. Three overview labels use the existing dictionary.
+- Type check, production build, and 27 tests pass. Tests check both copied prompt examples produce valid JSON with normal LaTeX after parsing, schema/placeholder parity, and exact math preservation through import/save/reload. Browser verified English/Chinese inline/display/title/overview/start/checkpoint rendering, no KaTeX errors, horizontal scrolling for a long equation with page width unchanged, and math after reload.
+- Math browser checks used a new sample session on isolated origin 127.0.0.1:5174. The temporary test server was stopped; the normal 5173 server was left alone. No real sessions were edited. Test-only browser sessions remain on 5174. Existing nonfatal bundle-size warning remains.
 
 ## Latest localization milestone
 

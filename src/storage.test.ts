@@ -63,6 +63,29 @@ test("persists the complete plan and reading state; migrates older surveys witho
     readingPlan: parsePlan(initialReadingPlanPrompt),
     completedQuestIds: ["Q1.1"],
   };
+  const math =
+    "How does $\\Theta_t$ affect $W_k^0$?\n\n$$\ne_k \\in \\mathcal{E}(V,\\beta_k^2)\n$$";
+  const plan = current.readingPlan;
+  plan.main_objective = math;
+  plan.route_summary = math;
+  plan.parts[0].title = math;
+  plan.parts[0].objective = math;
+  plan.parts[0].checkpoint.question = math;
+  Object.assign(plan.parts[0].quests[0], {
+    title: math,
+    objective: math,
+    read: [math],
+    focus_question: math,
+    completion_condition: math,
+  });
+  Object.assign(plan.start_here, {
+    instruction: math,
+    focus_question: math,
+    completion_condition: math,
+  });
+  plan.skim_for_now = [math];
+  // JSON parsing and local persistence preserve the source, never HTML.
+  assert.deepEqual(parsePlan(JSON.stringify(plan)), plan);
   save({ sessions: [current], activeId: current.id });
   assert.deepEqual(load().sessions[0], current);
   const beforeInvalidImport = stored;

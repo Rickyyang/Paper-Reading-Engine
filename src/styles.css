@@ -377,18 +377,21 @@ main {
   font-size: 11px;
   color: #5e806c;
 }
-.reading-guidance dl {
+.reading-guidance dl,
+.plan-overview dl {
   font-size: 14px;
   margin-bottom: 0;
 }
-.reading-guidance dt {
+.reading-guidance dt,
+.plan-overview dt {
   font-weight: 600;
   color: #506457;
   margin-top: 14px;
 }
-.reading-guidance dd {
+.reading-guidance dd,
+.plan-overview dd {
   margin: 4px 0 0;
-  white-space: pre-wrap;
+  min-width: 0;
 }
 .reading-guidance ul {
   margin: 0;
@@ -829,6 +832,36 @@ progress {
 }
 .markdown-note > :last-child {
   margin-bottom: 0;
+}
+.markdown-inline {
+  font-size: inherit;
+  line-height: inherit;
+}
+.plan-item .markdown-inline,
+.reading-guidance h2 .markdown-inline {
+  display: block;
+}
+.reading-plan .markdown-note,
+.reading-guidance .markdown-note,
+.plan-overview .markdown-note {
+  max-width: 100%;
+  overflow-x: auto;
+  overflow-y: hidden;
+  padding: 3px 0;
+}
+.plan-overview h3 {
+  font-size: 14px;
+  margin: 16px 0 6px;
+}
+.plan-start {
+  margin-top: 16px;
+  border-top: 1px solid #dde3db;
+  padding-top: 12px;
+}
+.plan-start summary {
+  cursor: pointer;
+  font-weight: 600;
+  margin-bottom: 8px;
 }
 .working-section {
   padding: 12px 0;

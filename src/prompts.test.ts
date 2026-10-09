@@ -29,6 +29,26 @@ test("new surveys default to a replaceable primary reading goal", () => {
   assert.equal(emptySurvey().reading_purpose, "");
 });
 
+test("both prompts show correctly escaped inline and display LaTeX JSON examples", () => {
+  const math = String.raw`e_k \in \mathcal{E}(V,\beta_k^2)`;
+  for (const template of [english, chinese]) {
+    assert.ok(template.includes(String.raw`$\Theta_t$`));
+    assert.ok(template.includes(String.raw`$\mathcal{E}(V,\beta_k^2)$`));
+    assert.ok(template.includes(`$$\n${math}\n$$`));
+    // The first fenced block illustrates escaping; the marked block remains
+    // the unchanged schema, checked by the schema-parity test below.
+    const example = JSON.parse(/```json\n([\s\S]*?)\n```/.exec(template)![1]);
+    assert.ok(example.focus_question.includes(String.raw`$\Theta_t$`));
+    assert.ok(
+      example.objective.includes(String.raw`$\mathcal{E}(V,\beta_k^2)$`),
+    );
+    assert.ok(example.completion_condition.includes(`$$\n${math}\n$$`));
+    assert.ok(!/[\u0000-\u0009\u000b-\u001f]/.test(example.objective));
+  }
+  assert.ok(!english.includes("Do not put Markdown inside JSON string values"));
+  assert.ok(!chinese.includes("JSON 字符串值内不要使用 Markdown"));
+});
+
 test("both predefined templates have identical placeholders and import schema", () => {
   const placeholders = (template: string) =>
     [...template.matchAll(/\{\{(\w+)\}\}/g)].map((match) => match[1]).sort();
